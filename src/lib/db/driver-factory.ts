@@ -1,6 +1,5 @@
 import { Kysely, sql } from 'kysely';
 import { NeonDialect, NeonHTTPDialect } from 'kysely-neon';
-import { Pool } from '@neondatabase/serverless';
 import postgres from 'postgres';
 import { PostgresJSDialect } from 'kysely-postgres-js';
 import type { Database } from './database';
@@ -55,14 +54,9 @@ export function createKyselyWithDriver(driver: DriverType): Kysely<Database> {
     }
     
     case 'neon-websocket': {
-      const pool = new Pool({
-        connectionString: poolerUrl,
-        max: 1,
-      });
-      
       return new Kysely<Database>({
         dialect: new NeonDialect({
-          pool,
+          connectionString: poolerUrl,
         }),
       });
     }

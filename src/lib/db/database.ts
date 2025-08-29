@@ -1,26 +1,26 @@
-import { Kysely } from 'kysely';
+import { Kysely, type Generated } from 'kysely';
 import { NeonDialect } from 'kysely-neon';
 import { neon } from '@neondatabase/serverless';
 import { env } from '~/env';
 
 export interface Database {
   users: {
-    id: string;
+    id: Generated<string>;
     email: string;
     name: string | null;
-    created_at: Date;
-    updated_at: Date;
+    created_at: Generated<Date>;
+    updated_at: Generated<Date>;
   };
   posts: {
-    id: string;
+    id: Generated<string>;
     title: string;
     content: string | null;
     user_id: string;
-    created_at: Date;
-    updated_at: Date;
+    created_at: Generated<Date>;
+    updated_at: Generated<Date>;
   };
   benchmark_results: {
-    id: string;
+    id: Generated<string>;
     driver: string;
     query_name: string;
     execution_time_ms: number;
@@ -30,7 +30,7 @@ export interface Database {
     p99_ms: number;
     min_ms: number;
     max_ms: number;
-    created_at: Date;
+    created_at: Generated<Date>;
   };
 }
 
