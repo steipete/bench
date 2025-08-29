@@ -15,7 +15,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const migrationSql = await fs.readFile(migrationPath, "utf-8");
 
     // Execute the migration
-    await sql.raw(migrationSql).execute(db);
+    await sql`${sql.raw(migrationSql)}`.execute(db);
 
     res.status(200).json({
       success: true,

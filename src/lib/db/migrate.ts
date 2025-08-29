@@ -15,7 +15,7 @@ async function migrate() {
     const migrationSql = await fs.readFile(migrationPath, "utf-8");
 
     // Execute the migration
-    await sql.raw(migrationSql).execute(db);
+    await sql`${sql.raw(migrationSql)}`.execute(db);
 
     console.log("✅ Migrations completed successfully");
   } catch (error) {
