@@ -8,12 +8,10 @@ interface BenchmarkChartProps {
 export function BenchmarkChart({ results, loading }: BenchmarkChartProps) {
   if (loading) {
     return (
-      <div className="bg-white border border-zinc-200 p-12">
+      <div className="bg-white rounded-lg border border-gray-200 p-12">
         <div className="flex flex-col items-center justify-center">
-          <div className="mb-4">
-            <div className="w-8 h-8 border-2 border-zinc-900 border-t-transparent animate-spin"></div>
-          </div>
-          <p className="text-xs uppercase tracking-wider text-zinc-500">Processing Benchmark</p>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+          <p className="mt-4 text-sm text-gray-600">Running benchmark tests...</p>
         </div>
       </div>
     );
@@ -21,185 +19,175 @@ export function BenchmarkChart({ results, loading }: BenchmarkChartProps) {
 
   if (!results || results.length === 0) {
     return (
-      <div className="bg-white border border-zinc-200 p-12">
+      <div className="bg-white rounded-lg border border-gray-200 p-12">
         <div className="text-center">
-          <p className="text-sm text-zinc-500 font-light">No benchmark data available</p>
-          <p className="text-xs text-zinc-400 mt-2">
-            Execute benchmark to view performance metrics
-          </p>
+          <p className="text-gray-900 font-medium mb-2">No benchmark data available</p>
+          <p className="text-sm text-gray-600">Execute benchmark to view performance metrics</p>
         </div>
       </div>
     );
   }
 
-  // Find the fastest driver for each query
-  const queryWinners: Record<string, string> = {};
-  const allQueries = [...new Set(results.flatMap((r) => r.results.map((q) => q.queryName)))];
+  // Find the fastest driver (lowest median)
+  const fastestDriver = results.reduce((prev, current) =>
+    prev.totalMedian < current.totalMedian ? prev : current
+  );
 
-  allQueries.forEach((queryName) => {
-    let fastestDriver = "";
-    let fastestTime = Infinity;
-
-    results.forEach((driverResult) => {
-      const queryResult = driverResult.results.find((r) => r.queryName === queryName);
-      if (queryResult && queryResult.median < fastestTime) {
-        fastestTime = queryResult.median;
-        fastestDriver = driverResult.driver;
-      }
-    });
-
-    queryWinners[queryName] = fastestDriver;
-  });
-
-  // Find overall winner
-  const overallWinner = results.reduce((prev, curr) =>
-    curr.totalMedian < prev.totalMedian ? curr : prev,
-  ).driver;
-
-  // Get max value for scale
-  const maxMedian = Math.max(...results.map((r) => r.totalMedian));
+  // Calculate max time for scaling
+  const maxTime = Math.max(...results.flatMap(r => r.results.flatMap(res => res.max)));
 
   return (
     <div className="space-y-6">
-      {/* Overall Performance */}
-      <div className="bg-white border border-zinc-200 p-6">
-        <h3 className="text-xs uppercase tracking-wider text-zinc-500 mb-6">Overall Performance</h3>
-        <div className="space-y-4">
-          {results.map((driverResult) => {
-            const firstResult = results[0];
-            const percentage = firstResult ? (driverResult.totalMedian / maxMedian) * 100 : 100;
-            const isWinner = driverResult.driver === overallWinner;
-
-            return (
-              <div key={driverResult.driver}>
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm font-light">{driverResult.driver}</span>
-                    {isWinner && (
-                      <span className="text-xs uppercase tracking-wider bg-zinc-900 text-white px-2 py-0.5">
-                        Fastest
-                      </span>
-                    )}
-                  </div>
-                  <span className="text-xs font-medium text-zinc-700">
-                    {driverResult.totalMedian.toFixed(2)}ms
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {results.map((driver) => {
+          const isFastest = driver.driver === fastestDriver.driver;
+          const percentDiff = ((driver.totalMedian - fastestDriver.totalMedian) / fastestDriver.totalMedian) * 100;
+          
+          return (
+            <div key={driver.driver} className="bg-white rounded-lg border border-gray-200 p-4">
+              <div className="flex items-start justify-between mb-3">
+                <h3 className="text-sm font-medium text-gray-900">{driver.driver}</h3>
+                {isFastest && (
+                  <span className="px-2 py-0.5 text-xs font-medium bg-green-100 text-green-800 rounded">
+                    Fastest
                   </span>
-                </div>
-                <div className="h-6 bg-zinc-100 relative overflow-hidden">
-                  <div
-                    className={`h-full transition-all duration-500 ${
-                      isWinner ? "bg-zinc-900" : "bg-zinc-400"
-                    }`}
-                    style={{ width: `${percentage}%` }}
-                  />
-                </div>
+                )}
               </div>
-            );
-          })}
-        </div>
+              
+              <div className="space-y-2">
+                <div>
+                  <p className="text-2xl font-semibold text-gray-900">
+                    {driver.totalMedian.toFixed(2)}ms
+                  </p>
+                  <p className="text-xs text-gray-500">Median response time</p>
+                </div>
+                
+                {!isFastest && (
+                  <p className="text-xs text-gray-600">
+                    {percentDiff > 0 ? '+' : ''}{percentDiff.toFixed(1)}% vs fastest
+                  </p>
+                )}
+              </div>
+            </div>
+          );
+        })}
       </div>
 
-      {/* Query Details */}
-      <div className="bg-white border border-zinc-200 overflow-hidden">
-        <div className="p-6 border-b border-zinc-200">
-          <h3 className="text-xs uppercase tracking-wider text-zinc-500">
-            Query Performance Matrix
-          </h3>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-zinc-200">
-                <th className="px-6 py-3 text-left">
-                  <span className="text-xs uppercase tracking-wider text-zinc-500">Query</span>
-                </th>
-                {results.map((r) => (
-                  <th key={r.driver} className="px-6 py-3 text-right">
-                    <span className="text-xs uppercase tracking-wider text-zinc-500">
-                      {r.driver}
-                    </span>
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {allQueries.map((queryName, idx) => (
-                <tr key={queryName} className={idx % 2 === 0 ? "bg-zinc-50" : ""}>
-                  <td className="px-6 py-3">
-                    <span className="text-sm font-light">{queryName}</span>
-                  </td>
-                  {results.map((driverResult) => {
-                    const queryResult = driverResult.results.find((r) => r.queryName === queryName);
-                    const isWinner = queryWinners[queryName] === driverResult.driver;
-
+      {/* Detailed Results */}
+      <div className="bg-white rounded-lg border border-gray-200 p-6">
+        <h3 className="text-sm font-medium uppercase tracking-wide text-gray-900 mb-6">
+          Query Performance Breakdown
+        </h3>
+        
+        <div className="space-y-6">
+          {results[0]?.results.map((queryResult) => {
+            const queryName = queryResult.queryName;
+            
+            return (
+              <div key={queryName} className="space-y-3">
+                <div className="flex items-baseline justify-between">
+                  <h4 className="text-sm font-medium text-gray-700">{queryName}</h4>
+                  <span className="text-xs text-gray-500">ms</span>
+                </div>
+                
+                <div className="space-y-2">
+                  {results.map((driver) => {
+                    const result = driver.results.find(r => r.queryName === queryName);
+                    if (!result) return null;
+                    
+                    const widthPercent = (result.median / maxTime) * 100;
+                    const isFastestQuery = Math.min(...results.map(d => 
+                      d.results.find(r => r.queryName === queryName)?.median || Infinity
+                    )) === result.median;
+                    
                     return (
-                      <td key={driverResult.driver} className="px-6 py-3 text-right">
-                        {queryResult ? (
-                          <div>
-                            <span
-                              className={`text-sm ${isWinner ? "font-medium" : "font-light text-zinc-600"}`}
-                            >
-                              {queryResult.median.toFixed(2)}
-                            </span>
-                            <span className="text-xs text-zinc-400 ml-1">ms</span>
-                            {isWinner && (
-                              <div className="text-xs text-zinc-500 mt-1">
-                                p95: {queryResult.p95.toFixed(2)}ms
-                              </div>
-                            )}
+                      <div key={driver.driver} className="flex items-center gap-3">
+                        <div className="w-24 text-xs text-gray-600 truncate">{driver.driver}</div>
+                        <div className="flex-1 relative">
+                          <div className="bg-gray-100 rounded h-6">
+                            <div 
+                              className={`h-full rounded transition-all ${
+                                isFastestQuery ? 'bg-blue-600' : 'bg-gray-400'
+                              }`}
+                              style={{ width: `${Math.max(widthPercent, 2)}%` }}
+                            />
                           </div>
-                        ) : (
-                          <span className="text-sm text-zinc-300">—</span>
-                        )}
-                      </td>
+                        </div>
+                        <div className="w-20 text-right">
+                          <span className="text-sm font-medium text-gray-900">
+                            {result.median.toFixed(2)}
+                          </span>
+                        </div>
+                      </div>
                     );
                   })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Statistics */}
-      <div className="bg-white border border-zinc-200 p-6">
-        <h3 className="text-xs uppercase tracking-wider text-zinc-500 mb-6">Statistical Summary</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {results.map((driverResult) => {
-            const isWinner = driverResult.driver === overallWinner;
-            return (
-              <div
-                key={driverResult.driver}
-                className={`p-4 ${isWinner ? "bg-zinc-900 text-white" : "bg-zinc-50"}`}
-              >
-                <h4
-                  className={`text-xs uppercase tracking-wider mb-4 ${isWinner ? "text-zinc-300" : "text-zinc-500"}`}
-                >
-                  {driverResult.driver}
-                </h4>
-                <dl className="space-y-2">
-                  <div className="flex justify-between items-baseline">
-                    <dt className={`text-xs ${isWinner ? "text-zinc-400" : "text-zinc-500"}`}>
-                      Median
-                    </dt>
-                    <dd className="text-sm font-medium">{driverResult.totalMedian.toFixed(2)}ms</dd>
-                  </div>
-                  <div className="flex justify-between items-baseline">
-                    <dt className={`text-xs ${isWinner ? "text-zinc-400" : "text-zinc-500"}`}>
-                      Mean
-                    </dt>
-                    <dd className="text-sm font-medium">{driverResult.totalMean.toFixed(2)}ms</dd>
-                  </div>
-                  <div className="flex justify-between items-baseline">
-                    <dt className={`text-xs ${isWinner ? "text-zinc-400" : "text-zinc-500"}`}>
-                      Queries
-                    </dt>
-                    <dd className="text-sm font-medium">{driverResult.results.length}</dd>
-                  </div>
-                </dl>
+                </div>
               </div>
             );
           })}
+        </div>
+
+        {/* Statistics Table */}
+        <div className="mt-8 pt-6 border-t border-gray-200">
+          <h4 className="text-sm font-medium uppercase tracking-wide text-gray-900 mb-4">
+            Detailed Statistics
+          </h4>
+          
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead>
+                <tr>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Driver
+                  </th>
+                  <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Mean
+                  </th>
+                  <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Median
+                  </th>
+                  <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    P95
+                  </th>
+                  <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    P99
+                  </th>
+                  <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Min
+                  </th>
+                  <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Max
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {results.map((driver) => (
+                  <tr key={driver.driver}>
+                    <td className="px-3 py-3 text-sm text-gray-900">{driver.driver}</td>
+                    <td className="px-3 py-3 text-sm text-right text-gray-600">
+                      {driver.totalMean.toFixed(2)}
+                    </td>
+                    <td className="px-3 py-3 text-sm text-right text-gray-600">
+                      {driver.totalMedian.toFixed(2)}
+                    </td>
+                    <td className="px-3 py-3 text-sm text-right text-gray-600">
+                      {driver.results[0]?.p95.toFixed(2) || '-'}
+                    </td>
+                    <td className="px-3 py-3 text-sm text-right text-gray-600">
+                      {driver.results[0]?.p99.toFixed(2) || '-'}
+                    </td>
+                    <td className="px-3 py-3 text-sm text-right text-gray-600">
+                      {Math.min(...driver.results.map(r => r.min)).toFixed(2)}
+                    </td>
+                    <td className="px-3 py-3 text-sm text-right text-gray-600">
+                      {Math.max(...driver.results.map(r => r.max)).toFixed(2)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>

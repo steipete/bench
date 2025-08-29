@@ -77,27 +77,24 @@ export default function Home() {
         <link rel="icon" href="/favicon.ico" />
       </Head>
 
-      <main className="min-h-screen" style={{ background: "var(--bg-primary)" }}>
-        <div className="max-w-7xl mx-auto px-6 py-12">
+      <main className="min-h-screen bg-gray-50">
+        <div className="max-w-6xl mx-auto px-4 py-8">
           {/* Header */}
-          <header className="mb-12">
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-2 h-2 bg-zinc-900"></div>
-              <h1 className="text-2xl font-light tracking-tight">DATABASE/BENCHMARK</h1>
-            </div>
-            <p className="text-zinc-500 text-sm font-light">
+          <header className="mb-8">
+            <h1 className="text-lg font-medium mb-1">DATABASE/BENCHMARK</h1>
+            <p className="text-sm text-gray-600">
               Performance comparison: postgres.js × neon-http × neon-websocket
             </p>
           </header>
 
           {/* Control Panel */}
-          <div className="mb-8 bg-white border border-zinc-200 p-6">
-            <h2 className="text-xs uppercase tracking-wider text-zinc-500 mb-6">Configuration</h2>
+          <div className="mb-8 bg-white rounded-lg border border-gray-200 p-6">
+            <h2 className="text-sm font-medium uppercase tracking-wide text-gray-900 mb-6">Configuration</h2>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               {/* Driver Selection */}
               <div>
-                <p className="block text-xs uppercase tracking-wider text-zinc-600 mb-4">Drivers</p>
+                <p className="text-xs font-medium uppercase tracking-wide text-gray-700 mb-3">Drivers</p>
                 <div className="space-y-3">
                   {Object.entries(selectedDrivers).map(([driver, enabled]) => (
                     <label key={driver} className="flex items-center gap-3 cursor-pointer group">
@@ -110,9 +107,9 @@ export default function Home() {
                             [driver]: e.target.checked,
                           })
                         }
-                        className="w-4 h-4 border-zinc-300 accent-zinc-900"
+                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                       />
-                      <span className="text-sm font-light group-hover:text-zinc-600">{driver}</span>
+                      <span className="text-sm text-gray-700">{driver}</span>
                     </label>
                   ))}
                 </div>
@@ -122,9 +119,9 @@ export default function Home() {
               <div>
                 <label
                   htmlFor="sample-range"
-                  className="block text-xs uppercase tracking-wider text-zinc-600 mb-4"
+                  className="text-xs font-medium uppercase tracking-wide text-gray-700 mb-3 block"
                 >
-                  Samples: <span className="text-zinc-900 font-medium">{sampleCount}</span>
+                  Samples: <span className="text-gray-900 font-semibold">{sampleCount}</span>
                 </label>
                 <input
                   id="sample-range"
@@ -133,40 +130,40 @@ export default function Home() {
                   max="50"
                   value={sampleCount}
                   onChange={(e) => setSampleCount(parseInt(e.target.value, 10))}
-                  className="w-full accent-zinc-900"
+                  className="w-full accent-blue-600"
                 />
-                <div className="flex justify-between text-xs text-zinc-400 mt-2">
+                <div className="flex justify-between text-xs text-gray-500 mt-2">
                   <span>Fast (5)</span>
                   <span>Accurate (50)</span>
                 </div>
               </div>
             </div>
 
-            <div className="mt-8 pt-6 border-t border-zinc-100">
+            <div className="mt-6">
               <button
                 type="button"
                 onClick={runBenchmark}
                 disabled={loading}
-                className="px-6 py-3 bg-zinc-900 text-white text-xs uppercase tracking-wider hover:bg-zinc-800 disabled:opacity-50 transition-colors"
+                className="px-4 py-2 bg-black text-white text-sm font-medium rounded hover:bg-gray-800 disabled:opacity-50 transition-colors"
               >
-                {loading ? "Running Benchmark..." : "Execute Benchmark"}
+                {loading ? "Running Benchmark..." : "EXECUTE BENCHMARK"}
               </button>
             </div>
           </div>
 
           {/* Error Display */}
           {error && (
-            <div className="mb-8 p-4 bg-red-50 border border-red-200">
+            <div className="mb-8 p-4 bg-red-50 rounded-lg border border-red-200">
               <div className="flex items-start gap-3">
-                <div className="mt-1">
-                  <div className="w-1.5 h-1.5 bg-red-600"></div>
-                </div>
+                <svg className="w-5 h-5 text-red-400 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
                 <div className="flex-1">
-                  <h3 className="text-sm font-medium text-red-900 mb-1">{error.message}</h3>
+                  <h3 className="text-sm font-medium text-red-800">{error.message}</h3>
                   {error.details && (
-                    <p className="text-xs text-red-700 mb-2 font-light">{error.details}</p>
+                    <p className="text-sm text-red-600 mt-1">{error.details}</p>
                   )}
-                  <p className="text-xs text-red-600">
+                  <p className="text-xs text-red-500 mt-2">
                     {new Date(error.timestamp).toLocaleTimeString()}
                   </p>
                 </div>
