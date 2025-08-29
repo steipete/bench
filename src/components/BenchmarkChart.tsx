@@ -57,7 +57,8 @@ export function BenchmarkChart({ results, loading }: BenchmarkChartProps) {
         <h3 className="text-lg font-semibold mb-4">Overall Performance</h3>
         <div className="space-y-3">
           {results.map(driverResult => {
-            const percentage = Math.round((driverResult.totalMedian / results[0].totalMedian) * 100);
+            const firstResult = results[0];
+            const percentage = firstResult ? Math.round((driverResult.totalMedian / firstResult.totalMedian) * 100) : 100;
             const isWinner = driverResult.driver === overallWinner;
             
             return (
