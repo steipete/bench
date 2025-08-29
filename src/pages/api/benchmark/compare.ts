@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { db } from "~/lib/db/database";
-import { compareDrivers, type DriverType } from "~/lib/db/driver-factory";
+import { compareDrivers, standardTestQueries, type DriverType } from "~/lib/db/driver-factory";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "GET" && req.method !== "POST") {
@@ -70,7 +70,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       results: comparison,
       metadata: {
         sampleCount: samples,
-        queries: queryList || Object.keys(require("~/lib/db/driver-factory").standardTestQueries),
+        queries: queryList || Object.keys(standardTestQueries),
         timestamp: new Date().toISOString(),
       },
     });
