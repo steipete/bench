@@ -14,8 +14,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const migrationPath = path.join(process.cwd(), "src/lib/db/migrations/001_initial_schema.sql");
     const migrationSql = await fs.readFile(migrationPath, "utf-8");
 
-    // Execute the migration
-    await sql`${sql.raw(migrationSql)}`.execute(db);
+    // Execute the migration - use db.executeQuery with raw SQL
+    await db.executeQuery(sql.raw(migrationSql).compile(db));
 
     res.status(200).json({
       success: true,

@@ -14,8 +14,8 @@ async function migrate() {
     const migrationPath = path.join(process.cwd(), "src/lib/db/migrations/001_initial_schema.sql");
     const migrationSql = await fs.readFile(migrationPath, "utf-8");
 
-    // Execute the migration
-    await sql`${sql.raw(migrationSql)}`.execute(db);
+    // Execute the migration - use db.executeQuery with raw SQL
+    await db.executeQuery(sql.raw(migrationSql).compile(db));
 
     console.log("✅ Migrations completed successfully");
   } catch (error) {
