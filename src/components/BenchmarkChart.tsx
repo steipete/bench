@@ -1,5 +1,5 @@
-import React from 'react';
-import type { DriverComparisonResult } from '~/lib/db/driver-factory';
+import React from "react";
+import type { DriverComparisonResult } from "~/lib/db/driver-factory";
 
 interface BenchmarkChartProps {
   results: DriverComparisonResult[];
@@ -9,10 +9,12 @@ interface BenchmarkChartProps {
 export function BenchmarkChart({ results, loading }: BenchmarkChartProps) {
   if (loading) {
     return (
-      <div className="flex items-center justify-center p-8">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Running benchmark...</p>
+      <div className="bg-white border border-zinc-200 p-12">
+        <div className="flex flex-col items-center justify-center">
+          <div className="mb-4">
+            <div className="w-8 h-8 border-2 border-zinc-900 border-t-transparent animate-spin"></div>
+          </div>
+          <p className="text-xs uppercase tracking-wider text-zinc-500">Processing Benchmark</p>
         </div>
       </div>
     );
@@ -20,69 +22,77 @@ export function BenchmarkChart({ results, loading }: BenchmarkChartProps) {
 
   if (!results || results.length === 0) {
     return (
-      <div className="text-center p-8 text-gray-500">
-        No benchmark results available. Click "Run Benchmark" to start.
+      <div className="bg-white border border-zinc-200 p-12">
+        <div className="text-center">
+          <p className="text-sm text-zinc-500 font-light">No benchmark data available</p>
+          <p className="text-xs text-zinc-400 mt-2">
+            Execute benchmark to view performance metrics
+          </p>
+        </div>
       </div>
     );
   }
 
   // Find the fastest driver for each query
   const queryWinners: Record<string, string> = {};
-  const allQueries = [...new Set(results.flatMap(r => r.results.map(q => q.queryName)))];
-  
-  allQueries.forEach(queryName => {
-    let fastestDriver = '';
+  const allQueries = [...new Set(results.flatMap((r) => r.results.map((q) => q.queryName)))];
+
+  allQueries.forEach((queryName) => {
+    let fastestDriver = "";
     let fastestTime = Infinity;
-    
-    results.forEach(driverResult => {
-      const queryResult = driverResult.results.find(r => r.queryName === queryName);
+
+    results.forEach((driverResult) => {
+      const queryResult = driverResult.results.find((r) => r.queryName === queryName);
       if (queryResult && queryResult.median < fastestTime) {
         fastestTime = queryResult.median;
         fastestDriver = driverResult.driver;
       }
     });
-    
+
     queryWinners[queryName] = fastestDriver;
   });
 
   // Find overall winner
-  const overallWinner = results.reduce((prev, curr) => 
-    curr.totalMedian < prev.totalMedian ? curr : prev
+  const overallWinner = results.reduce((prev, curr) =>
+    curr.totalMedian < prev.totalMedian ? curr : prev,
   ).driver;
+
+  // Get max value for scale
+  const maxMedian = Math.max(...results.map((r) => r.totalMedian));
 
   return (
     <div className="space-y-6">
-      {/* Overall Comparison */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <h3 className="text-lg font-semibold mb-4">Overall Performance</h3>
-        <div className="space-y-3">
-          {results.map(driverResult => {
+      {/* Overall Performance */}
+      <div className="bg-white border border-zinc-200 p-6">
+        <h3 className="text-xs uppercase tracking-wider text-zinc-500 mb-6">Overall Performance</h3>
+        <div className="space-y-4">
+          {results.map((driverResult) => {
             const firstResult = results[0];
-            const percentage = firstResult ? Math.round((driverResult.totalMedian / firstResult.totalMedian) * 100) : 100;
+            const percentage = firstResult ? (driverResult.totalMedian / maxMedian) * 100 : 100;
             const isWinner = driverResult.driver === overallWinner;
-            
+
             return (
-              <div key={driverResult.driver} className="flex items-center space-x-4">
-                <div className="w-32 font-medium">
-                  {driverResult.driver}
-                  {isWinner && (
-                    <span className="ml-2 text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
-                      Winner
-                    </span>
-                  )}
-                </div>
-                <div className="flex-1">
-                  <div className="bg-gray-200 rounded-full h-6 relative">
-                    <div
-                      className={`h-6 rounded-full ${
-                        isWinner ? 'bg-green-500' : 'bg-blue-500'
-                      }`}
-                      style={{ width: `${percentage}%` }}
-                    />
-                    <span className="absolute right-2 top-0 h-6 flex items-center text-xs font-medium">
-                      {driverResult.totalMedian.toFixed(2)}ms
-                    </span>
+              <div key={driverResult.driver}>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm font-light">{driverResult.driver}</span>
+                    {isWinner && (
+                      <span className="text-xs uppercase tracking-wider bg-zinc-900 text-white px-2 py-0.5">
+                        Fastest
+                      </span>
+                    )}
                   </div>
+                  <span className="text-xs font-medium text-zinc-700">
+                    {driverResult.totalMedian.toFixed(2)}ms
+                  </span>
+                </div>
+                <div className="h-6 bg-zinc-100 relative overflow-hidden">
+                  <div
+                    className={`h-full transition-all duration-500 ${
+                      isWinner ? "bg-zinc-900" : "bg-zinc-400"
+                    }`}
+                    style={{ width: `${percentage}%` }}
+                  />
                 </div>
               </div>
             );
@@ -90,46 +100,57 @@ export function BenchmarkChart({ results, loading }: BenchmarkChartProps) {
         </div>
       </div>
 
-      {/* Per-Query Results */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <h3 className="text-lg font-semibold mb-4">Query Performance Details</h3>
+      {/* Query Details */}
+      <div className="bg-white border border-zinc-200 overflow-hidden">
+        <div className="p-6 border-b border-zinc-200">
+          <h3 className="text-xs uppercase tracking-wider text-zinc-500">
+            Query Performance Matrix
+          </h3>
+        </div>
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Query
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-zinc-200">
+                <th className="px-6 py-3 text-left">
+                  <span className="text-xs uppercase tracking-wider text-zinc-500">Query</span>
                 </th>
-                {results.map(r => (
-                  <th key={r.driver} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    {r.driver}
+                {results.map((r) => (
+                  <th key={r.driver} className="px-6 py-3 text-right">
+                    <span className="text-xs uppercase tracking-wider text-zinc-500">
+                      {r.driver}
+                    </span>
                   </th>
                 ))}
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {allQueries.map(queryName => (
-                <tr key={queryName}>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    {queryName}
+            <tbody>
+              {allQueries.map((queryName, idx) => (
+                <tr key={queryName} className={idx % 2 === 0 ? "bg-zinc-50" : ""}>
+                  <td className="px-6 py-3">
+                    <span className="text-sm font-light">{queryName}</span>
                   </td>
-                  {results.map(driverResult => {
-                    const queryResult = driverResult.results.find(r => r.queryName === queryName);
+                  {results.map((driverResult) => {
+                    const queryResult = driverResult.results.find((r) => r.queryName === queryName);
                     const isWinner = queryWinners[queryName] === driverResult.driver;
-                    
+
                     return (
-                      <td key={driverResult.driver} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      <td key={driverResult.driver} className="px-6 py-3 text-right">
                         {queryResult ? (
                           <div>
-                            <span className={isWinner ? 'font-semibold text-green-600' : ''}>
-                              {queryResult.median.toFixed(2)}ms
+                            <span
+                              className={`text-sm ${isWinner ? "font-medium" : "font-light text-zinc-600"}`}
+                            >
+                              {queryResult.median.toFixed(2)}
                             </span>
-                            <div className="text-xs text-gray-500">
-                              p95: {queryResult.p95.toFixed(2)}ms
-                            </div>
+                            <span className="text-xs text-zinc-400 ml-1">ms</span>
+                            {isWinner && (
+                              <div className="text-xs text-zinc-500 mt-1">
+                                p95: {queryResult.p95.toFixed(2)}ms
+                              </div>
+                            )}
                           </div>
                         ) : (
-                          '-'
+                          <span className="text-sm text-zinc-300">—</span>
                         )}
                       </td>
                     );
@@ -141,29 +162,45 @@ export function BenchmarkChart({ results, loading }: BenchmarkChartProps) {
         </div>
       </div>
 
-      {/* Statistical Details */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <h3 className="text-lg font-semibold mb-4">Statistical Summary</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {results.map(driverResult => (
-            <div key={driverResult.driver} className="border rounded-lg p-4">
-              <h4 className="font-medium mb-2">{driverResult.driver}</h4>
-              <dl className="space-y-1 text-sm">
-                <div className="flex justify-between">
-                  <dt className="text-gray-500">Median:</dt>
-                  <dd className="font-medium">{driverResult.totalMedian.toFixed(2)}ms</dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt className="text-gray-500">Mean:</dt>
-                  <dd className="font-medium">{driverResult.totalMean.toFixed(2)}ms</dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt className="text-gray-500">Queries:</dt>
-                  <dd className="font-medium">{driverResult.results.length}</dd>
-                </div>
-              </dl>
-            </div>
-          ))}
+      {/* Statistics */}
+      <div className="bg-white border border-zinc-200 p-6">
+        <h3 className="text-xs uppercase tracking-wider text-zinc-500 mb-6">Statistical Summary</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {results.map((driverResult) => {
+            const isWinner = driverResult.driver === overallWinner;
+            return (
+              <div
+                key={driverResult.driver}
+                className={`p-4 ${isWinner ? "bg-zinc-900 text-white" : "bg-zinc-50"}`}
+              >
+                <h4
+                  className={`text-xs uppercase tracking-wider mb-4 ${isWinner ? "text-zinc-300" : "text-zinc-500"}`}
+                >
+                  {driverResult.driver}
+                </h4>
+                <dl className="space-y-2">
+                  <div className="flex justify-between items-baseline">
+                    <dt className={`text-xs ${isWinner ? "text-zinc-400" : "text-zinc-500"}`}>
+                      Median
+                    </dt>
+                    <dd className="text-sm font-medium">{driverResult.totalMedian.toFixed(2)}ms</dd>
+                  </div>
+                  <div className="flex justify-between items-baseline">
+                    <dt className={`text-xs ${isWinner ? "text-zinc-400" : "text-zinc-500"}`}>
+                      Mean
+                    </dt>
+                    <dd className="text-sm font-medium">{driverResult.totalMean.toFixed(2)}ms</dd>
+                  </div>
+                  <div className="flex justify-between items-baseline">
+                    <dt className={`text-xs ${isWinner ? "text-zinc-400" : "text-zinc-500"}`}>
+                      Queries
+                    </dt>
+                    <dd className="text-sm font-medium">{driverResult.results.length}</dd>
+                  </div>
+                </dl>
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>

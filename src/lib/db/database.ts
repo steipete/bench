@@ -1,7 +1,7 @@
-import { Kysely, type Generated } from 'kysely';
-import { NeonDialect } from 'kysely-neon';
-import { neon } from '@neondatabase/serverless';
-import { env } from '~/env';
+import { neon } from "@neondatabase/serverless";
+import { type Generated, Kysely } from "kysely";
+import { NeonDialect } from "kysely-neon";
+import { env } from "~/env";
 
 export interface Database {
   users: {

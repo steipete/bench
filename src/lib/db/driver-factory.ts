@@ -1,11 +1,11 @@
-import { Kysely, sql } from 'kysely';
-import { NeonDialect, NeonHTTPDialect } from 'kysely-neon';
-import postgres from 'postgres';
-import { PostgresJSDialect } from 'kysely-postgres-js';
-import type { Database } from './database';
-import { env } from '~/env';
+import { Kysely, sql } from "kysely";
+import { NeonDialect, NeonHTTPDialect } from "kysely-neon";
+import { PostgresJSDialect } from "kysely-postgres-js";
+import postgres from "postgres";
+import { env } from "~/env";
+import type { Database } from "./database";
 
-export type DriverType = 'postgres.js' | 'neon-http' | 'neon-websocket';
+export type DriverType = "postgres.js" | "neon-http" | "neon-websocket";
 
 export interface PerformanceTestResult {
   queryName: string;
@@ -31,36 +31,36 @@ export function createKyselyWithDriver(driver: DriverType): Kysely<Database> {
   const directUrl = env.DIRECT_DATABASE_URL || env.DATABASE_URL;
 
   switch (driver) {
-    case 'postgres.js': {
+    case "postgres.js": {
       const postgresConnection = postgres(directUrl, {
         max: 1,
         idle_timeout: 20,
         connect_timeout: 10,
       });
-      
+
       return new Kysely<Database>({
         dialect: new PostgresJSDialect({
           postgres: postgresConnection,
         }),
       });
     }
-    
-    case 'neon-http': {
+
+    case "neon-http": {
       return new Kysely<Database>({
         dialect: new NeonHTTPDialect({
           connectionString: poolerUrl,
         }),
       });
     }
-    
-    case 'neon-websocket': {
+
+    case "neon-websocket": {
       return new Kysely<Database>({
         dialect: new NeonDialect({
           connectionString: poolerUrl,
         }),
       });
     }
-    
+
     default:
       throw new Error(`Unknown driver: ${driver}`);
   }
@@ -100,10 +100,12 @@ export const standardTestQueries = {
   `,
 };
 
-function calculateStats(times: number[]): Omit<PerformanceTestResult, 'queryName' | 'times' | 'sampleCount'> {
+function calculateStats(
+  times: number[],
+): Omit<PerformanceTestResult, "queryName" | "times" | "sampleCount"> {
   const sorted = [...times].sort((a, b) => a - b);
   const sum = sorted.reduce((a, b) => a + b, 0);
-  
+
   return {
     median: sorted[Math.floor(sorted.length / 2)] || 0,
     mean: sum / sorted.length || 0,
@@ -118,22 +120,22 @@ export async function runPerformanceTest(
   db: Kysely<Database>,
   queryName: string,
   queryFn: () => any,
-  sampleCount: number = 10
+  sampleCount: number = 10,
 ): Promise<PerformanceTestResult> {
   const times: number[] = [];
-  
+
   // Warm-up run
   await queryFn().execute(db);
-  
+
   for (let i = 0; i < sampleCount; i++) {
     const start = performance.now();
     await queryFn().execute(db);
     const end = performance.now();
     times.push(end - start);
   }
-  
+
   const stats = calculateStats(times);
-  
+
   return {
     queryName,
     times,
@@ -145,15 +147,15 @@ export async function runPerformanceTest(
 export async function compareDrivers(
   drivers: DriverType[],
   queryNames?: string[],
-  sampleCount: number = 10
+  sampleCount: number = 10,
 ): Promise<DriverComparisonResult[]> {
   const results: DriverComparisonResult[] = [];
   const queriesToRun = queryNames || Object.keys(standardTestQueries);
-  
+
   for (const driver of drivers) {
     const db = createKyselyWithDriver(driver);
     const driverResults: PerformanceTestResult[] = [];
-    
+
     try {
       for (const queryName of queriesToRun) {
         if (queryName in standardTestQueries) {
@@ -162,10 +164,10 @@ export async function compareDrivers(
           driverResults.push(result);
         }
       }
-      
-      const allMedians = driverResults.map(r => r.median);
-      const allMeans = driverResults.map(r => r.mean);
-      
+
+      const allMedians = driverResults.map((r) => r.median);
+      const allMeans = driverResults.map((r) => r.mean);
+
       results.push({
         driver,
         results: driverResults,
@@ -176,6 +178,6 @@ export async function compareDrivers(
       await db.destroy();
     }
   }
-  
+
   return results;
 }

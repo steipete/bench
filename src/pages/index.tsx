@@ -12,32 +12,42 @@ interface BenchmarkResponse {
   };
 }
 
+interface ErrorDetails {
+  message: string;
+  details?: string;
+  timestamp: string;
+}
+
 export default function Home() {
   const [benchmarkResults, setBenchmarkResults] = useState<DriverComparisonResult[]>([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<ErrorDetails | null>(null);
   const [migrated, setMigrated] = useState(false);
   const [sampleCount, setSampleCount] = useState(10);
   const [selectedDrivers, setSelectedDrivers] = useState({
-    'postgres.js': true,
-    'neon-http': true,
-    'neon-websocket': true,
+    "postgres.js": true,
+    "neon-http": true,
+    "neon-websocket": true,
   });
 
   const runMigration = async () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch('/api/benchmark/migrate', {
-        method: 'POST',
+      const response = await fetch("/api/benchmark/migrate", {
+        method: "POST",
       });
       const data = await response.json();
       if (!response.ok) {
-        throw new Error(data.error || 'Migration failed');
+        throw new Error(data.error || data.details || "Migration failed");
       }
       setMigrated(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Migration failed');
+      setError({
+        message: "Database migration failed",
+        details: err instanceof Error ? err.message : "Unknown error occurred",
+        timestamp: new Date().toISOString(),
+      });
     } finally {
       setLoading(false);
     }
@@ -52,26 +62,32 @@ export default function Home() {
         .map(([driver]) => driver);
 
       if (drivers.length === 0) {
-        throw new Error('Please select at least one driver');
+        throw new Error("Please select at least one driver to benchmark");
       }
 
-      const response = await fetch('/api/benchmark/compare', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/benchmark/compare", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           drivers,
           sampleCount,
         }),
       });
 
-      const data: BenchmarkResponse = await response.json();
+      const data: BenchmarkResponse | { error?: string; details?: string } = await response.json();
+
       if (!response.ok) {
-        throw new Error((data as any).error || 'Benchmark failed');
+        const errorData = data as { error?: string; details?: string };
+        throw new Error(errorData.error || errorData.details || "Benchmark failed");
       }
-      
-      setBenchmarkResults(data.results);
+
+      setBenchmarkResults((data as BenchmarkResponse).results);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Benchmark failed');
+      setError({
+        message: "Failed to run benchmark comparison",
+        details: err instanceof Error ? err.message : "Unknown error occurred",
+        timestamp: new Date().toISOString(),
+      });
     } finally {
       setLoading(false);
     }
@@ -81,125 +97,129 @@ export default function Home() {
     <>
       <Head>
         <title>Database Driver Benchmark</title>
-        <meta name="description" content="Compare database driver performance" />
+        <meta name="description" content="High-performance database driver comparison" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
-      
-      <main className="min-h-screen bg-gray-50">
-        <div className="container mx-auto px-4 py-8">
-          <div className="max-w-6xl mx-auto">
-            <header className="text-center mb-8">
-              <h1 className="text-4xl font-bold text-gray-900 mb-2">
-                Database Driver Performance Benchmark
-              </h1>
-              <p className="text-lg text-gray-600">
-                Compare Neon database driver performance: postgres.js vs Neon HTTP vs Neon WebSocket
-              </p>
-            </header>
 
-            {/* Migration Section */}
-            {!migrated && (
-              <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
-                <div className="flex">
-                  <div className="flex-shrink-0">
-                    <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                    </svg>
-                  </div>
-                  <div className="ml-3">
-                    <p className="text-sm text-yellow-700">
-                      Database needs to be initialized before running benchmarks.
-                    </p>
-                    <button
-                      onClick={runMigration}
-                      disabled={loading}
-                      className="mt-2 bg-yellow-600 text-white px-4 py-2 rounded hover:bg-yellow-700 disabled:opacity-50"
-                    >
-                      Initialize Database
-                    </button>
-                  </div>
+      <main className="min-h-screen" style={{ background: "var(--bg-primary)" }}>
+        <div className="max-w-7xl mx-auto px-6 py-12">
+          {/* Header */}
+          <header className="mb-12">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-2 h-2 bg-zinc-900"></div>
+              <h1 className="text-2xl font-light tracking-tight">DATABASE/BENCHMARK</h1>
+            </div>
+            <p className="text-zinc-500 text-sm font-light">
+              Performance comparison: postgres.js × neon-http × neon-websocket
+            </p>
+          </header>
+
+          {/* Migration Alert */}
+          {!migrated && (
+            <div className="mb-8 p-4 bg-zinc-50 border border-zinc-200">
+              <div className="flex items-start gap-3">
+                <div className="mt-1">
+                  <div className="w-1.5 h-1.5 bg-zinc-600"></div>
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm text-zinc-700 mb-3">
+                    Database initialization required before running benchmarks
+                  </p>
+                  <button
+                    onClick={runMigration}
+                    disabled={loading}
+                    className="px-4 py-2 bg-zinc-900 text-white text-xs uppercase tracking-wider hover:bg-zinc-800 disabled:opacity-50 transition-colors"
+                  >
+                    {loading ? "Initializing..." : "Initialize Database"}
+                  </button>
                 </div>
               </div>
-            )}
+            </div>
+          )}
 
-            {/* Control Panel */}
-            <div className="bg-white rounded-lg shadow p-6 mb-6">
-              <h2 className="text-xl font-semibold mb-4">Benchmark Configuration</h2>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Driver Selection */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Select Drivers to Test
-                  </label>
-                  <div className="space-y-2">
-                    {Object.entries(selectedDrivers).map(([driver, enabled]) => (
-                      <label key={driver} className="flex items-center">
-                        <input
-                          type="checkbox"
-                          checked={enabled}
-                          onChange={(e) => setSelectedDrivers({
+          {/* Control Panel */}
+          <div className="mb-8 bg-white border border-zinc-200 p-6">
+            <h2 className="text-xs uppercase tracking-wider text-zinc-500 mb-6">Configuration</h2>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              {/* Driver Selection */}
+              <div>
+                <label className="block text-xs uppercase tracking-wider text-zinc-600 mb-4">
+                  Drivers
+                </label>
+                <div className="space-y-3">
+                  {Object.entries(selectedDrivers).map(([driver, enabled]) => (
+                    <label key={driver} className="flex items-center gap-3 cursor-pointer group">
+                      <input
+                        type="checkbox"
+                        checked={enabled}
+                        onChange={(e) =>
+                          setSelectedDrivers({
                             ...selectedDrivers,
-                            [driver]: e.target.checked
-                          })}
-                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                        />
-                        <span className="ml-2 text-sm text-gray-900">{driver}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Sample Count */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Sample Count: {sampleCount}
-                  </label>
-                  <input
-                    type="range"
-                    min="5"
-                    max="50"
-                    value={sampleCount}
-                    onChange={(e) => setSampleCount(parseInt(e.target.value))}
-                    className="w-full"
-                  />
-                  <div className="flex justify-between text-xs text-gray-500">
-                    <span>5 (fast)</span>
-                    <span>50 (accurate)</span>
-                  </div>
+                            [driver]: e.target.checked,
+                          })
+                        }
+                        className="w-4 h-4 border-zinc-300 accent-zinc-900"
+                      />
+                      <span className="text-sm font-light group-hover:text-zinc-600">{driver}</span>
+                    </label>
+                  ))}
                 </div>
               </div>
 
-              <div className="mt-6">
-                <button
-                  onClick={runBenchmark}
-                  disabled={loading || !migrated}
-                  className="w-full md:w-auto bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {loading ? 'Running Benchmark...' : 'Run Benchmark'}
-                </button>
+              {/* Sample Count */}
+              <div>
+                <label className="block text-xs uppercase tracking-wider text-zinc-600 mb-4">
+                  Samples: <span className="text-zinc-900 font-medium">{sampleCount}</span>
+                </label>
+                <input
+                  type="range"
+                  min="5"
+                  max="50"
+                  value={sampleCount}
+                  onChange={(e) => setSampleCount(parseInt(e.target.value))}
+                  className="w-full accent-zinc-900"
+                />
+                <div className="flex justify-between text-xs text-zinc-400 mt-2">
+                  <span>Fast (5)</span>
+                  <span>Accurate (50)</span>
+                </div>
               </div>
             </div>
 
-            {/* Error Display */}
-            {error && (
-              <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-6">
-                <div className="flex">
-                  <div className="flex-shrink-0">
-                    <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                    </svg>
-                  </div>
-                  <div className="ml-3">
-                    <p className="text-sm text-red-700">{error}</p>
-                  </div>
+            <div className="mt-8 pt-6 border-t border-zinc-100">
+              <button
+                onClick={runBenchmark}
+                disabled={loading || !migrated}
+                className="px-6 py-3 bg-zinc-900 text-white text-xs uppercase tracking-wider hover:bg-zinc-800 disabled:opacity-50 transition-colors"
+              >
+                {loading ? "Running Benchmark..." : "Execute Benchmark"}
+              </button>
+            </div>
+          </div>
+
+          {/* Error Display */}
+          {error && (
+            <div className="mb-8 p-4 bg-red-50 border border-red-200">
+              <div className="flex items-start gap-3">
+                <div className="mt-1">
+                  <div className="w-1.5 h-1.5 bg-red-600"></div>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-sm font-medium text-red-900 mb-1">{error.message}</h3>
+                  {error.details && (
+                    <p className="text-xs text-red-700 mb-2 font-light">{error.details}</p>
+                  )}
+                  <p className="text-xs text-red-600">
+                    {new Date(error.timestamp).toLocaleTimeString()}
+                  </p>
                 </div>
               </div>
-            )}
+            </div>
+          )}
 
-            {/* Results Display */}
-            <BenchmarkChart results={benchmarkResults} loading={loading} />
-          </div>
+          {/* Results */}
+          <BenchmarkChart results={benchmarkResults} loading={loading} />
         </div>
       </main>
     </>
