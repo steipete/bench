@@ -18,6 +18,9 @@
       "style": {
         "noNonNullAssertion": "warn",
         "useImportType": "error"
+      },
+      "suspicious": {
+        "noExplicitAny": "warn"
       }
     }
   },

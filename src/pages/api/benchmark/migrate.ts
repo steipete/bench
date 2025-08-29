@@ -1,7 +1,7 @@
-import { promises as fs } from "fs";
+import { promises as fs } from "node:fs";
+import path from "node:path";
 import { sql } from "kysely";
 import type { NextApiRequest, NextApiResponse } from "next";
-import path from "path";
 import { db } from "~/lib/db/database";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {

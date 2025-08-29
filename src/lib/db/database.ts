@@ -1,4 +1,3 @@
-import { neon } from "@neondatabase/serverless";
 import { type Generated, Kysely } from "kysely";
 import { NeonDialect } from "kysely-neon";
 import { env } from "~/env";

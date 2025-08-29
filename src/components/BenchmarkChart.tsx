@@ -1,4 +1,3 @@
-import React from "react";
 import type { DriverComparisonResult } from "~/lib/db/driver-factory";
 
 interface BenchmarkChartProps {

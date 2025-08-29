@@ -22,36 +22,12 @@ export default function Home() {
   const [benchmarkResults, setBenchmarkResults] = useState<DriverComparisonResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<ErrorDetails | null>(null);
-  const [migrated, setMigrated] = useState(false);
   const [sampleCount, setSampleCount] = useState(10);
   const [selectedDrivers, setSelectedDrivers] = useState({
     "postgres.js": true,
     "neon-http": true,
     "neon-websocket": true,
   });
-
-  const runMigration = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await fetch("/api/benchmark/migrate", {
-        method: "POST",
-      });
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error || data.details || "Migration failed");
-      }
-      setMigrated(true);
-    } catch (err) {
-      setError({
-        message: "Database migration failed",
-        details: err instanceof Error ? err.message : "Unknown error occurred",
-        timestamp: new Date().toISOString(),
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const runBenchmark = async () => {
     setLoading(true);
@@ -114,29 +90,6 @@ export default function Home() {
             </p>
           </header>
 
-          {/* Migration Alert */}
-          {!migrated && (
-            <div className="mb-8 p-4 bg-zinc-50 border border-zinc-200">
-              <div className="flex items-start gap-3">
-                <div className="mt-1">
-                  <div className="w-1.5 h-1.5 bg-zinc-600"></div>
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm text-zinc-700 mb-3">
-                    Database initialization required before running benchmarks
-                  </p>
-                  <button
-                    onClick={runMigration}
-                    disabled={loading}
-                    className="px-4 py-2 bg-zinc-900 text-white text-xs uppercase tracking-wider hover:bg-zinc-800 disabled:opacity-50 transition-colors"
-                  >
-                    {loading ? "Initializing..." : "Initialize Database"}
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
           {/* Control Panel */}
           <div className="mb-8 bg-white border border-zinc-200 p-6">
             <h2 className="text-xs uppercase tracking-wider text-zinc-500 mb-6">Configuration</h2>
@@ -144,9 +97,7 @@ export default function Home() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               {/* Driver Selection */}
               <div>
-                <label className="block text-xs uppercase tracking-wider text-zinc-600 mb-4">
-                  Drivers
-                </label>
+                <p className="block text-xs uppercase tracking-wider text-zinc-600 mb-4">Drivers</p>
                 <div className="space-y-3">
                   {Object.entries(selectedDrivers).map(([driver, enabled]) => (
                     <label key={driver} className="flex items-center gap-3 cursor-pointer group">
@@ -169,15 +120,19 @@ export default function Home() {
 
               {/* Sample Count */}
               <div>
-                <label className="block text-xs uppercase tracking-wider text-zinc-600 mb-4">
+                <label
+                  htmlFor="sample-range"
+                  className="block text-xs uppercase tracking-wider text-zinc-600 mb-4"
+                >
                   Samples: <span className="text-zinc-900 font-medium">{sampleCount}</span>
                 </label>
                 <input
+                  id="sample-range"
                   type="range"
                   min="5"
                   max="50"
                   value={sampleCount}
-                  onChange={(e) => setSampleCount(parseInt(e.target.value))}
+                  onChange={(e) => setSampleCount(parseInt(e.target.value, 10))}
                   className="w-full accent-zinc-900"
                 />
                 <div className="flex justify-between text-xs text-zinc-400 mt-2">
@@ -189,8 +144,9 @@ export default function Home() {
 
             <div className="mt-8 pt-6 border-t border-zinc-100">
               <button
+                type="button"
                 onClick={runBenchmark}
-                disabled={loading || !migrated}
+                disabled={loading}
                 className="px-6 py-3 bg-zinc-900 text-white text-xs uppercase tracking-wider hover:bg-zinc-800 disabled:opacity-50 transition-colors"
               >
                 {loading ? "Running Benchmark..." : "Execute Benchmark"}

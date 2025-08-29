@@ -1,10 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { db } from "~/lib/db/database";
-import {
-  compareDrivers,
-  type DriverComparisonResult,
-  type DriverType,
-} from "~/lib/db/driver-factory";
+import { compareDrivers, type DriverType } from "~/lib/db/driver-factory";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "GET" && req.method !== "POST") {
@@ -31,7 +27,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         ? queries.split(",")
         : undefined;
 
-    const samples = Math.min(parseInt(String(sampleCount)), 100);
+    const samples = Math.min(parseInt(String(sampleCount), 10), 100);
 
     const results = await compareDrivers(driverList, queryList, samples);
 
