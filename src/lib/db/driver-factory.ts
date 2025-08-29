@@ -1,6 +1,5 @@
 import { Kysely, sql } from 'kysely';
-import { NeonDialect } from 'kysely-neon';
-import { NeonHttpDialect } from 'kysely-neon';
+import { NeonDialect, NeonHTTPDialect } from 'kysely-neon';
 import { Pool } from '@neondatabase/serverless';
 import postgres from 'postgres';
 import { PostgresJSDialect } from 'kysely-postgres-js';
@@ -49,7 +48,7 @@ export function createKyselyWithDriver(driver: DriverType): Kysely<Database> {
     
     case 'neon-http': {
       return new Kysely<Database>({
-        dialect: new NeonHttpDialect({
+        dialect: new NeonHTTPDialect({
           connectionString: poolerUrl,
         }),
       });
