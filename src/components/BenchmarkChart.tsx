@@ -10,7 +10,7 @@ export function BenchmarkChart({ results, loading }: BenchmarkChartProps) {
     return (
       <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-12 transition-colors">
         <div className="flex flex-col items-center justify-center">
-          <div className="animate-spin h-8 w-8 border-b-2 border-gray-900 dark:border-gray-100"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 dark:border-gray-100"></div>
           <p className="mt-4 text-sm text-gray-600 dark:text-gray-400">Running benchmark tests...</p>
         </div>
       </div>
