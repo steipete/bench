@@ -28,11 +28,10 @@ export interface DriverComparisonResult {
 
 export function createKyselyWithDriver(driver: DriverType): Kysely<Database> {
   const poolerUrl = env.DATABASE_URL;
-  const directUrl = env.DIRECT_DATABASE_URL || env.DATABASE_URL;
 
   switch (driver) {
     case "postgres.js": {
-      const postgresConnection = postgres(directUrl, {
+      const postgresConnection = postgres(poolerUrl, {
         max: 1,
         idle_timeout: 20,
         connect_timeout: 10,

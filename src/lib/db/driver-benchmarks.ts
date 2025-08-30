@@ -94,8 +94,9 @@ function calculateStats(times: number[]): Omit<PerformanceTestResult, 'queryName
 }
 
 async function runPostgresJSBenchmark(): Promise<PerformanceTestResult[]> {
-  const directUrl = env.DIRECT_DATABASE_URL || env.DATABASE_URL;
-  const sql = postgres(directUrl, {
+  // Use pooled connection for postgres.js as well
+  const pooledUrl = env.DATABASE_URL;
+  const sql = postgres(pooledUrl, {
     max: 1,
     idle_timeout: 20,
     connect_timeout: 10,
