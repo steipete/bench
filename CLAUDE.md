@@ -54,6 +54,14 @@ The application uses Next.js API routes in `src/pages/api/`:
 ### Deployment
 - Pushing to GitHub automatically triggers a Vercel deployment
 - The application is configured for serverless deployment with proper environment variable validation
+- **Production URL**: https://bench.dev.sweetistics.com/ (main deployment)
+- **Local Development**: http://localhost:3001 (use `npm run dev -- --port 3001`)
+
+#### Known Production Issues:
+- The production deployment may be running an older version of the codebase
+- Benchmark endpoint fails with template literal error (needs @neondatabase/serverless v1.0.1 fixes)
+- Dark mode toggle may not be visible (missing recent UI updates)
+- Some API endpoints may return 404 (missing recent additions like `/api/health`)
 
 ## Code Style
 - Uses Biome for linting and formatting
