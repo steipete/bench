@@ -3,6 +3,7 @@ import {
   runBenchmarkComparison,
   storeBenchmarkResults,
 } from "~/lib/db/driver-benchmarks";
+import type { DriverType } from "~/lib/db/driver-benchmarks";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "GET" && req.method !== "POST") {
@@ -10,7 +11,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const results = await runBenchmarkComparison();
+    const { drivers, sampleCount } =
+      req.method === "POST" && req.body
+        ? (typeof req.body === "string" ? JSON.parse(req.body) : req.body)
+        : { drivers: undefined, sampleCount: undefined };
+
+    const driverList: DriverType[] = Array.isArray(drivers) && drivers.length
+      ? drivers
+      : ["postgres.js", "neon-http", "neon-websocket"];
+
+    const count: number = typeof sampleCount === "number" && sampleCount > 0 ? sampleCount : 20;
+
+    const results = await runBenchmarkComparison(driverList, count);
 
     // Calculate comparison percentages
     const comparison = results.map((driverResult, index) => {
@@ -33,7 +45,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     res.status(200).json({
       results: comparison,
       metadata: {
-        sampleCount: 20,
+        sampleCount: count,
+        queries: results[0]?.results.map(r => r.queryName) ?? [],
         timestamp: new Date().toISOString(),
       },
     });

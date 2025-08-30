@@ -93,7 +93,7 @@ function calculateStats(times: number[]): Omit<PerformanceTestResult, 'queryName
   return { median, mean, p95, p99, min, max };
 }
 
-async function runPostgresJSBenchmark(): Promise<PerformanceTestResult[]> {
+async function runPostgresJSBenchmark(iterations: number): Promise<PerformanceTestResult[]> {
   // Use pooled connection for postgres.js as well
   const pooledUrl = env.DATABASE_URL;
   const sql = postgres(pooledUrl, {
@@ -107,7 +107,6 @@ async function runPostgresJSBenchmark(): Promise<PerformanceTestResult[]> {
   try {
     for (const query of testQueries) {
       const times: number[] = [];
-      const iterations = 20;
 
       for (let i = 0; i < iterations; i++) {
         const start = performance.now();
@@ -130,7 +129,7 @@ async function runPostgresJSBenchmark(): Promise<PerformanceTestResult[]> {
   return results;
 }
 
-async function runNeonBenchmark(useHttp: boolean): Promise<PerformanceTestResult[]> {
+async function runNeonBenchmark(useHttp: boolean, iterations: number): Promise<PerformanceTestResult[]> {
   const connectionString = env.DATABASE_URL; // Using pooler for both HTTP and WS
 
   const results: PerformanceTestResult[] = [];
@@ -140,7 +139,6 @@ async function runNeonBenchmark(useHttp: boolean): Promise<PerformanceTestResult
 
     for (const query of testQueries) {
       const times: number[] = [];
-      const iterations = 20;
 
       for (let i = 0; i < iterations; i++) {
         const start = performance.now();
@@ -164,7 +162,6 @@ async function runNeonBenchmark(useHttp: boolean): Promise<PerformanceTestResult
     try {
       for (const query of testQueries) {
         const times: number[] = [];
-        const iterations = 20;
 
         for (let i = 0; i < iterations; i++) {
           const start = performance.now();
@@ -188,35 +185,39 @@ async function runNeonBenchmark(useHttp: boolean): Promise<PerformanceTestResult
   return results;
 }
 
-export async function runBenchmarkComparison(): Promise<DriverComparisonResult[]> {
+export async function runBenchmarkComparison(
+  drivers: DriverType[] = ["postgres.js", "neon-http", "neon-websocket"],
+  sampleCount: number = 20,
+): Promise<DriverComparisonResult[]> {
   const results: DriverComparisonResult[] = [];
 
-  // Run postgres.js benchmark
-  const postgresResults = await runPostgresJSBenchmark();
-  results.push({
-    driver: "postgres.js",
-    results: postgresResults,
-    totalMedian: postgresResults.reduce((sum, r) => sum + r.median, 0),
-    totalMean: postgresResults.reduce((sum, r) => sum + r.mean, 0),
-  });
-
-  // Run neon-http benchmark
-  const neonHttpResults = await runNeonBenchmark(true);
-  results.push({
-    driver: "neon-http",
-    results: neonHttpResults,
-    totalMedian: neonHttpResults.reduce((sum, r) => sum + r.median, 0),
-    totalMean: neonHttpResults.reduce((sum, r) => sum + r.mean, 0),
-  });
-
-  // Run neon-websocket benchmark
-  const neonWsResults = await runNeonBenchmark(false);
-  results.push({
-    driver: "neon-websocket",
-    results: neonWsResults,
-    totalMedian: neonWsResults.reduce((sum, r) => sum + r.median, 0),
-    totalMean: neonWsResults.reduce((sum, r) => sum + r.mean, 0),
-  });
+  for (const driver of drivers) {
+    if (driver === "postgres.js") {
+      const r = await runPostgresJSBenchmark(sampleCount);
+      results.push({
+        driver,
+        results: r,
+        totalMedian: r.reduce((sum, x) => sum + x.median, 0),
+        totalMean: r.reduce((sum, x) => sum + x.mean, 0),
+      });
+    } else if (driver === "neon-http") {
+      const r = await runNeonBenchmark(true, sampleCount);
+      results.push({
+        driver,
+        results: r,
+        totalMedian: r.reduce((sum, x) => sum + x.median, 0),
+        totalMean: r.reduce((sum, x) => sum + x.mean, 0),
+      });
+    } else if (driver === "neon-websocket") {
+      const r = await runNeonBenchmark(false, sampleCount);
+      results.push({
+        driver,
+        results: r,
+        totalMedian: r.reduce((sum, x) => sum + x.median, 0),
+        totalMean: r.reduce((sum, x) => sum + x.mean, 0),
+      });
+    }
+  }
 
   return results;
 }
