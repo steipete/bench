@@ -38,9 +38,35 @@ yarn-error.log*
 
 # vercel
 .vercel
+.vercel.json
 
 # typescript
 *.tsbuildinfo
+next-env.d.ts
+
+# sentry
+.sentryclirc
 
 # idea files
 .idea
+
+# os files  
+.DS_Store
+Thumbs.db
+
+# logs
+logs
+*.log
+
+# runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# coverage directory used by tools like istanbul
+coverage/
+.nyc_output/
+
+# node-waf configuration
+.lock-wscript
