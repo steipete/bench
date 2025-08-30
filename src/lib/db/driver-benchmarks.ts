@@ -1,4 +1,5 @@
-import { neon } from '@neondatabase/serverless';
+import { neon, Pool, neonConfig } from '@neondatabase/serverless';
+import ws from 'ws';
 import postgres from 'postgres';
 import { env } from '~/env';
 
@@ -129,31 +130,58 @@ async function runPostgresJSBenchmark(): Promise<PerformanceTestResult[]> {
 }
 
 async function runNeonBenchmark(useHttp: boolean): Promise<PerformanceTestResult[]> {
-  const connectionString = useHttp 
-    ? env.DATABASE_URL // Use pooler for HTTP
-    : env.DATABASE_URL; // WebSocket also uses pooler
-    
-  const sql = neon(connectionString);
+  const connectionString = env.DATABASE_URL; // Using pooler for both HTTP and WS
+
   const results: PerformanceTestResult[] = [];
 
-  for (const query of testQueries) {
-    const times: number[] = [];
-    const iterations = 20;
+  if (useHttp) {
+    const sql = neon(connectionString);
 
-    for (let i = 0; i < iterations; i++) {
-      const start = performance.now();
-      // Use sql.query() for raw SQL execution when SQL is in a variable
-      await sql.query(query.sql);
-      const end = performance.now();
-      times.push(end - start);
+    for (const query of testQueries) {
+      const times: number[] = [];
+      const iterations = 20;
+
+      for (let i = 0; i < iterations; i++) {
+        const start = performance.now();
+        await sql.query(query.sql);
+        const end = performance.now();
+        times.push(end - start);
+      }
+
+      results.push({
+        queryName: query.name,
+        times,
+        sampleCount: iterations,
+        ...calculateStats(times),
+      });
     }
+  } else {
+    // Use WebSockets via Pool/Client API per Neon docs
+    neonConfig.webSocketConstructor = ws as unknown as typeof WebSocket;
+    const pool = new Pool({ connectionString });
 
-    results.push({
-      queryName: query.name,
-      times,
-      sampleCount: iterations,
-      ...calculateStats(times),
-    });
+    try {
+      for (const query of testQueries) {
+        const times: number[] = [];
+        const iterations = 20;
+
+        for (let i = 0; i < iterations; i++) {
+          const start = performance.now();
+          await pool.query(query.sql);
+          const end = performance.now();
+          times.push(end - start);
+        }
+
+        results.push({
+          queryName: query.name,
+          times,
+          sampleCount: iterations,
+          ...calculateStats(times),
+        });
+      }
+    } finally {
+      await pool.end();
+    }
   }
 
   return results;
