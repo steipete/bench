@@ -1,5 +1,6 @@
 import type { AppType } from "next/dist/shared/lib/utils";
 import { Geist } from "next/font/google";
+import { ThemeProvider } from "~/contexts/ThemeContext";
 
 import "~/styles/globals.css";
 
@@ -9,9 +10,11 @@ const geist = Geist({
 
 const MyApp: AppType = ({ Component, pageProps }) => {
   return (
-    <div className={geist.className}>
-      <Component {...pageProps} />
-    </div>
+    <ThemeProvider>
+      <div className={geist.className}>
+        <Component {...pageProps} />
+      </div>
+    </ThemeProvider>
   );
 };
 
