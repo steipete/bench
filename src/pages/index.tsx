@@ -130,14 +130,14 @@ export default function Home() {
                 <input
                   id="sample-range"
                   type="range"
-                  min="5"
+                  min="1"
                   max="50"
                   value={sampleCount}
                   onChange={(e) => setSampleCount(parseInt(e.target.value, 10))}
                   className="w-full h-2 bg-gray-200 dark:bg-gray-700 appearance-none cursor-pointer accent-blue-600 dark:accent-blue-500"
                 />
                 <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-2">
-                  <span>Fast (5)</span>
+                  <span>Fast (1)</span>
                   <span>Accurate (50)</span>
                 </div>
               </div>
