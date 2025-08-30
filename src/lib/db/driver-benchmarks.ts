@@ -83,12 +83,26 @@ const testQueries: TestQuery[] = [
 
 function calculateStats(times: number[]): Omit<PerformanceTestResult, 'queryName' | 'times' | 'sampleCount'> {
   const sorted = [...times].sort((a, b) => a - b);
-  const median = sorted[Math.floor(sorted.length / 2)] ?? 0;
-  const mean = times.reduce((a, b) => a + b, 0) / times.length;
-  const p95 = sorted[Math.floor(sorted.length * 0.95)] ?? 0;
-  const p99 = sorted[Math.floor(sorted.length * 0.99)] ?? 0;
-  const min = Math.min(...times);
-  const max = Math.max(...times);
+
+  const quantile = (arr: number[], p: number): number => {
+    const n = arr.length;
+    if (n === 0) return 0;
+    if (p <= 0) return arr[0] ?? 0;
+    if (p >= 1) return arr[n - 1] ?? 0;
+    const idx = (n - 1) * p;
+    const lo = Math.floor(idx);
+    const hi = Math.ceil(idx);
+    const w = idx - lo;
+    if (lo === hi) return arr[lo] ?? 0;
+    return (arr[lo] ?? 0) * (1 - w) + (arr[hi] ?? 0) * w;
+  };
+
+  const median = quantile(sorted, 0.5);
+  const p95 = quantile(sorted, 0.95);
+  const p99 = quantile(sorted, 0.99);
+  const mean = times.length ? times.reduce((a, b) => a + b, 0) / times.length : 0;
+  const min = sorted[0] ?? 0;
+  const max = sorted[sorted.length - 1] ?? 0;
 
   return { median, mean, p95, p99, min, max };
 }

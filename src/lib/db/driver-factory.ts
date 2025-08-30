@@ -103,13 +103,27 @@ function calculateStats(
   times: number[],
 ): Omit<PerformanceTestResult, "queryName" | "times" | "sampleCount"> {
   const sorted = [...times].sort((a, b) => a - b);
+
+  const quantile = (arr: number[], p: number): number => {
+    const n = arr.length;
+    if (n === 0) return 0;
+    if (p <= 0) return arr[0] ?? 0;
+    if (p >= 1) return arr[n - 1] ?? 0;
+    const idx = (n - 1) * p;
+    const lo = Math.floor(idx);
+    const hi = Math.ceil(idx);
+    const w = idx - lo;
+    if (lo === hi) return arr[lo] ?? 0;
+    return (arr[lo] ?? 0) * (1 - w) + (arr[hi] ?? 0) * w;
+  };
+
   const sum = sorted.reduce((a, b) => a + b, 0);
 
   return {
-    median: sorted[Math.floor(sorted.length / 2)] || 0,
-    mean: sum / sorted.length || 0,
-    p95: sorted[Math.floor(sorted.length * 0.95)] || 0,
-    p99: sorted[Math.floor(sorted.length * 0.99)] || 0,
+    median: quantile(sorted, 0.5),
+    mean: sorted.length ? sum / sorted.length : 0,
+    p95: quantile(sorted, 0.95),
+    p99: quantile(sorted, 0.99),
     min: sorted[0] || 0,
     max: sorted[sorted.length - 1] || 0,
   };
@@ -122,9 +136,6 @@ export async function runPerformanceTest(
   sampleCount: number = 10,
 ): Promise<PerformanceTestResult> {
   const times: number[] = [];
-
-  // Warm-up run
-  await queryFn().execute(db);
 
   for (let i = 0; i < sampleCount; i++) {
     const start = performance.now();
