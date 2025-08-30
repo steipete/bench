@@ -2,7 +2,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { neon } from '@neondatabase/serverless';
 import { env } from "~/env";
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(_req: NextApiRequest, res: NextApiResponse) {
   try {
     const sql = neon(env.DATABASE_URL);
     const [result] = await sql`SELECT 1 as healthy`;

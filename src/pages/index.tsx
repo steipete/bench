@@ -92,7 +92,7 @@ export default function Home() {
           </header>
 
           {/* Control Panel */}
-          <div className="mb-8 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 transition-colors">
+          <div className="mb-8 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-6 transition-colors">
             <h2 className="text-sm font-medium uppercase tracking-wide text-gray-900 dark:text-gray-100 mb-6">Configuration</h2>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -111,7 +111,7 @@ export default function Home() {
                             [driver]: e.target.checked,
                           })
                         }
-                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                        className="w-4 h-4 text-blue-600 border-gray-300 dark:border-gray-600 focus:ring-blue-500 dark:focus:ring-blue-400 dark:bg-gray-700"
                       />
                       <span className="text-sm text-gray-700 dark:text-gray-300">{driver}</span>
                     </label>
@@ -134,7 +134,7 @@ export default function Home() {
                   max="50"
                   value={sampleCount}
                   onChange={(e) => setSampleCount(parseInt(e.target.value, 10))}
-                  className="w-full accent-blue-600"
+                  className="w-full h-2 bg-gray-200 dark:bg-gray-700 appearance-none cursor-pointer accent-blue-600 dark:accent-blue-500"
                 />
                 <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-2">
                   <span>Fast (5)</span>
@@ -148,7 +148,7 @@ export default function Home() {
                 type="button"
                 onClick={runBenchmark}
                 disabled={loading}
-                className="px-4 py-2 bg-black dark:bg-gray-700 text-white text-sm font-medium rounded hover:bg-gray-800 dark:hover:bg-gray-600 disabled:opacity-50 transition-colors"
+                className="px-4 py-2 bg-black dark:bg-gray-700 text-white text-sm font-medium hover:bg-gray-800 dark:hover:bg-gray-600 disabled:opacity-50 transition-colors"
               >
                 {loading ? "Running Benchmark..." : "EXECUTE BENCHMARK"}
               </button>
@@ -157,7 +157,7 @@ export default function Home() {
 
           {/* Error Display */}
           {error && (
-            <div className="mb-8 p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
+            <div className="mb-8 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
               <div className="flex items-start gap-3">
                 <svg className="w-5 h-5 text-red-400 dark:text-red-300 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
