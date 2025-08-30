@@ -11,7 +11,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const { drivers, sampleCount } =
+    const { drivers, sampleCount, queries } =
       req.method === "POST" && req.body
         ? (typeof req.body === "string" ? JSON.parse(req.body) : req.body)
         : { drivers: undefined, sampleCount: undefined };
@@ -22,7 +22,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const count: number = typeof sampleCount === "number" && sampleCount > 0 ? sampleCount : 20;
 
-    const results = await runBenchmarkComparison(driverList, count);
+    const queryNames: string[] | undefined = Array.isArray(queries) && queries.length ? queries : undefined;
+
+    const results = await runBenchmarkComparison(driverList, count, queryNames);
 
     // Calculate comparison percentages
     const comparison = results.map((driverResult, index) => {
@@ -46,7 +48,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       results: comparison,
       metadata: {
         sampleCount: count,
-        queries: results[0]?.results.map(r => r.queryName) ?? [],
+        queries: (queryNames && queryNames.length) ? queryNames : results[0]?.results.map(r => r.queryName) ?? [],
         timestamp: new Date().toISOString(),
       },
     });

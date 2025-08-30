@@ -24,6 +24,14 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<ErrorDetails | null>(null);
   const [sampleCount, setSampleCount] = useState(10);
+  const [selectedQueries, setSelectedQueries] = useState({
+    simple: true,
+    timestamp: true,
+    countUsers: true,
+    recentPosts: true,
+    complexJoin: true,
+    aggregation: true,
+  });
   const [selectedDrivers, setSelectedDrivers] = useState({
     "postgres.js": true,
     "neon-http": true,
@@ -48,6 +56,9 @@ export default function Home() {
         body: JSON.stringify({
           drivers,
           sampleCount,
+          queries: Object.entries(selectedQueries)
+            .filter(([_, enabled]) => enabled)
+            .map(([name]) => name),
         }),
       });
 
@@ -96,10 +107,10 @@ export default function Home() {
             <h2 className="text-sm font-medium uppercase tracking-wide text-gray-900 dark:text-gray-100 mb-6">Configuration</h2>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {/* Driver Selection */}
-              <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-gray-700 dark:text-gray-300 mb-3">Drivers</p>
-                <div className="space-y-3">
+          {/* Driver Selection */}
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wide text-gray-700 dark:text-gray-300 mb-3">Drivers</p>
+            <div className="space-y-3">
                   {Object.entries(selectedDrivers).map(([driver, enabled]) => (
                     <label key={driver} className="flex items-center gap-3 cursor-pointer group">
                       <input
@@ -116,8 +127,8 @@ export default function Home() {
                       <span className="text-sm text-gray-700 dark:text-gray-300">{driver}</span>
                     </label>
                   ))}
-                </div>
-              </div>
+            </div>
+          </div>
 
               {/* Sample Count */}
               <div>
@@ -139,6 +150,29 @@ export default function Home() {
                 <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-2">
                   <span>Fast (1)</span>
                   <span>Accurate (50)</span>
+                </div>
+              </div>
+
+              {/* Query Selection */}
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-gray-700 dark:text-gray-300 mb-3">Queries</p>
+                <div className="grid grid-cols-2 gap-3">
+                  {Object.entries(selectedQueries).map(([name, enabled]) => (
+                    <label key={name} className="flex items-center gap-3 cursor-pointer group">
+                      <input
+                        type="checkbox"
+                        checked={enabled}
+                        onChange={(e) =>
+                          setSelectedQueries({
+                            ...selectedQueries,
+                            [name]: e.target.checked,
+                          })
+                        }
+                        className="w-4 h-4 text-blue-600 border-gray-300 dark:border-gray-600 focus:ring-blue-500 dark:focus:ring-blue-400 dark:bg-gray-700"
+                      />
+                      <span className="text-sm text-gray-700 dark:text-gray-300">{name}</span>
+                    </label>
+                  ))}
                 </div>
               </div>
             </div>

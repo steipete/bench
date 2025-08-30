@@ -81,6 +81,12 @@ const testQueries: TestQuery[] = [
   }
 ];
 
+function getQueriesToRun(queryNames?: string[]): TestQuery[] {
+  if (!queryNames || queryNames.length === 0) return testQueries;
+  const set = new Set(queryNames);
+  return testQueries.filter((q) => set.has(q.name));
+}
+
 function calculateStats(times: number[]): Omit<PerformanceTestResult, 'queryName' | 'times' | 'sampleCount'> {
   const sorted = [...times].sort((a, b) => a - b);
 
@@ -107,7 +113,7 @@ function calculateStats(times: number[]): Omit<PerformanceTestResult, 'queryName
   return { median, mean, p95, p99, min, max };
 }
 
-async function runPostgresJSBenchmark(iterations: number): Promise<PerformanceTestResult[]> {
+async function runPostgresJSBenchmark(iterations: number, queryNames?: string[]): Promise<PerformanceTestResult[]> {
   // Use pooled connection for postgres.js as well
   const pooledUrl = env.DATABASE_URL;
   const sql = postgres(pooledUrl, {
@@ -119,7 +125,7 @@ async function runPostgresJSBenchmark(iterations: number): Promise<PerformanceTe
   const results: PerformanceTestResult[] = [];
 
   try {
-    for (const query of testQueries) {
+    for (const query of getQueriesToRun(queryNames)) {
       const times: number[] = [];
 
       for (let i = 0; i < iterations; i++) {
@@ -143,7 +149,7 @@ async function runPostgresJSBenchmark(iterations: number): Promise<PerformanceTe
   return results;
 }
 
-async function runNeonBenchmark(useHttp: boolean, iterations: number): Promise<PerformanceTestResult[]> {
+async function runNeonBenchmark(useHttp: boolean, iterations: number, queryNames?: string[]): Promise<PerformanceTestResult[]> {
   const connectionString = env.DATABASE_URL; // Using pooler for both HTTP and WS
 
   const results: PerformanceTestResult[] = [];
@@ -151,7 +157,7 @@ async function runNeonBenchmark(useHttp: boolean, iterations: number): Promise<P
   if (useHttp) {
     const sql = neon(connectionString);
 
-    for (const query of testQueries) {
+    for (const query of getQueriesToRun(queryNames)) {
       const times: number[] = [];
 
       for (let i = 0; i < iterations; i++) {
@@ -174,7 +180,7 @@ async function runNeonBenchmark(useHttp: boolean, iterations: number): Promise<P
     const pool = new Pool({ connectionString });
 
     try {
-      for (const query of testQueries) {
+      for (const query of getQueriesToRun(queryNames)) {
         const times: number[] = [];
 
         for (let i = 0; i < iterations; i++) {
@@ -202,12 +208,13 @@ async function runNeonBenchmark(useHttp: boolean, iterations: number): Promise<P
 export async function runBenchmarkComparison(
   drivers: DriverType[] = ["postgres.js", "neon-http", "neon-websocket"],
   sampleCount: number = 20,
+  queryNames?: string[],
 ): Promise<DriverComparisonResult[]> {
   const results: DriverComparisonResult[] = [];
 
   for (const driver of drivers) {
     if (driver === "postgres.js") {
-      const r = await runPostgresJSBenchmark(sampleCount);
+      const r = await runPostgresJSBenchmark(sampleCount, queryNames);
       results.push({
         driver,
         results: r,
@@ -215,7 +222,7 @@ export async function runBenchmarkComparison(
         totalMean: r.reduce((sum, x) => sum + x.mean, 0),
       });
     } else if (driver === "neon-http") {
-      const r = await runNeonBenchmark(true, sampleCount);
+      const r = await runNeonBenchmark(true, sampleCount, queryNames);
       results.push({
         driver,
         results: r,
@@ -223,7 +230,7 @@ export async function runBenchmarkComparison(
         totalMean: r.reduce((sum, x) => sum + x.mean, 0),
       });
     } else if (driver === "neon-websocket") {
-      const r = await runNeonBenchmark(false, sampleCount);
+      const r = await runNeonBenchmark(false, sampleCount, queryNames);
       results.push({
         driver,
         results: r,
