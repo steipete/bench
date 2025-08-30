@@ -8,10 +8,10 @@ interface BenchmarkChartProps {
 export function BenchmarkChart({ results, loading }: BenchmarkChartProps) {
   if (loading) {
     return (
-      <div className="bg-white rounded-lg border border-gray-200 p-12">
+      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-12 transition-colors">
         <div className="flex flex-col items-center justify-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
-          <p className="mt-4 text-sm text-gray-600">Running benchmark tests...</p>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 dark:border-gray-100"></div>
+          <p className="mt-4 text-sm text-gray-600 dark:text-gray-400">Running benchmark tests...</p>
         </div>
       </div>
     );
@@ -19,10 +19,10 @@ export function BenchmarkChart({ results, loading }: BenchmarkChartProps) {
 
   if (!results || results.length === 0) {
     return (
-      <div className="bg-white rounded-lg border border-gray-200 p-12">
+      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-12 transition-colors">
         <div className="text-center">
-          <p className="text-gray-900 font-medium mb-2">No benchmark data available</p>
-          <p className="text-sm text-gray-600">Execute benchmark to view performance metrics</p>
+          <p className="text-gray-900 dark:text-gray-100 font-medium mb-2">No benchmark data available</p>
+          <p className="text-sm text-gray-600 dark:text-gray-400">Execute benchmark to view performance metrics</p>
         </div>
       </div>
     );
@@ -45,11 +45,11 @@ export function BenchmarkChart({ results, loading }: BenchmarkChartProps) {
           const percentDiff = ((driver.totalMedian - fastestDriver.totalMedian) / fastestDriver.totalMedian) * 100;
           
           return (
-            <div key={driver.driver} className="bg-white rounded-lg border border-gray-200 p-4">
+            <div key={driver.driver} className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 transition-colors">
               <div className="flex items-start justify-between mb-3">
-                <h3 className="text-sm font-medium text-gray-900">{driver.driver}</h3>
+                <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">{driver.driver}</h3>
                 {isFastest && (
-                  <span className="px-2 py-0.5 text-xs font-medium bg-green-100 text-green-800 rounded">
+                  <span className="px-2 py-0.5 text-xs font-medium bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 rounded">
                     Fastest
                   </span>
                 )}
@@ -57,14 +57,14 @@ export function BenchmarkChart({ results, loading }: BenchmarkChartProps) {
               
               <div className="space-y-2">
                 <div>
-                  <p className="text-2xl font-semibold text-gray-900">
+                  <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
                     {driver.totalMedian.toFixed(2)}ms
                   </p>
-                  <p className="text-xs text-gray-500">Median response time</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Median response time</p>
                 </div>
                 
                 {!isFastest && (
-                  <p className="text-xs text-gray-600">
+                  <p className="text-xs text-gray-600 dark:text-gray-400">
                     {percentDiff > 0 ? '+' : ''}{percentDiff.toFixed(1)}% vs fastest
                   </p>
                 )}
@@ -75,8 +75,8 @@ export function BenchmarkChart({ results, loading }: BenchmarkChartProps) {
       </div>
 
       {/* Detailed Results */}
-      <div className="bg-white rounded-lg border border-gray-200 p-6">
-        <h3 className="text-sm font-medium uppercase tracking-wide text-gray-900 mb-6">
+      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 transition-colors">
+        <h3 className="text-sm font-medium uppercase tracking-wide text-gray-900 dark:text-gray-100 mb-6">
           Query Performance Breakdown
         </h3>
         
@@ -87,8 +87,8 @@ export function BenchmarkChart({ results, loading }: BenchmarkChartProps) {
             return (
               <div key={queryName} className="space-y-3">
                 <div className="flex items-baseline justify-between">
-                  <h4 className="text-sm font-medium text-gray-700">{queryName}</h4>
-                  <span className="text-xs text-gray-500">ms</span>
+                  <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">{queryName}</h4>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">ms</span>
                 </div>
                 
                 <div className="space-y-2">
