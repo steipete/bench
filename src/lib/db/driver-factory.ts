@@ -1,7 +1,8 @@
-import { Kysely, sql } from "kysely";
-import { NeonDialect, NeonHTTPDialect } from "kysely-neon";
+import { Kysely, sql, PostgresDialect } from "kysely";
+import { NeonDialect } from "kysely-neon";
 import { PostgresJSDialect } from "kysely-postgres-js";
-import { neon } from "@neondatabase/serverless";
+import { neon, Pool, neonConfig } from "@neondatabase/serverless";
+import ws from "ws";
 import postgres from "postgres";
 import { env } from "~/env";
 import type { Database } from "./database";
@@ -27,90 +28,8 @@ export interface DriverComparisonResult {
   totalMean: number;
 }
 
-async function ensureDatabaseSchema(db: Kysely<Database>, driver: DriverType): Promise<void> {
-  // Special handling for neon-http - use direct SQL
-  if (driver === "neon-http") {
-    try {
-      const neonSql = neon(env.DATABASE_URL);
-      await neonSql.query("SELECT id FROM users LIMIT 1");
-      console.log('✅ Database schema exists and is accessible');
-      return;
-    } catch (error) {
-      console.log('Database schema not found, attempting to create tables...');
-      try {
-        const neonSql = neon(env.DATABASE_URL);
-        
-        // Create users table
-        await neonSql.query(`
-          CREATE TABLE IF NOT EXISTS users (
-            id SERIAL PRIMARY KEY,
-            name VARCHAR(255) NOT NULL,
-            email VARCHAR(255) NOT NULL UNIQUE,
-            created_at TIMESTAMP NOT NULL DEFAULT NOW()
-          )
-        `);
-        
-        // Create posts table
-        await neonSql.query(`
-          CREATE TABLE IF NOT EXISTS posts (
-            id SERIAL PRIMARY KEY,
-            user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-            title VARCHAR(255) NOT NULL,
-            content TEXT,
-            created_at TIMESTAMP NOT NULL DEFAULT NOW()
-          )
-        `);
-        
-        // Create benchmark_results table
-        await neonSql.query(`
-          CREATE TABLE IF NOT EXISTS benchmark_results (
-            id SERIAL PRIMARY KEY,
-            driver VARCHAR(50) NOT NULL,
-            query_name VARCHAR(100) NOT NULL,
-            execution_time_ms REAL NOT NULL,
-            sample_count INTEGER NOT NULL,
-            median_ms REAL NOT NULL,
-            p95_ms REAL NOT NULL,
-            p99_ms REAL NOT NULL,
-            min_ms REAL NOT NULL,
-            max_ms REAL NOT NULL,
-            created_at TIMESTAMP NOT NULL DEFAULT NOW()
-          )
-        `);
-        
-        // Seed some test data
-        await neonSql.query(`
-          INSERT INTO users (name, email) VALUES 
-          ('Alice Johnson', 'alice@example.com'),
-          ('Bob Smith', 'bob@example.com'),
-          ('Carol Davis', 'carol@example.com'),
-          ('David Wilson', 'david@example.com'),
-          ('Eve Brown', 'eve@example.com')
-          ON CONFLICT (email) DO NOTHING
-        `);
-        
-        // Add some posts
-        await neonSql.query(`
-          INSERT INTO posts (user_id, title, content)
-          SELECT u.id, 
-                 'Post by User ' || u.id || ' - Part ' || s.part, 
-                 'Content for post ' || s.part || ' by user ' || u.id
-          FROM users u
-          CROSS JOIN (VALUES (1), (2)) AS s(part)
-          ON CONFLICT DO NOTHING
-        `);
-        
-        console.log('✅ Database schema created and seeded successfully');
-        return;
-      } catch (schemaError) {
-        console.log('⚠️ Could not create schema (may be read-only database), continuing with existing schema...');
-        console.log('Schema error:', schemaError);
-        return;
-      }
-    }
-  }
-
-  // Standard Kysely execution for all other drivers
+async function ensureDatabaseSchema(db: Kysely<Database>, _driver: DriverType): Promise<void> {
+  // Use Kysely for schema across all drivers (Neon HTTP supported via v2 dialect)
   try {
     // Try to query a table - if it fails, create the schema
     await db.selectFrom('users').select('id').limit(1).execute();
@@ -204,17 +123,21 @@ export function createKyselyWithDriver(driver: DriverType): Kysely<Database> {
     }
 
     case "neon-http": {
+      // Neon HTTP via kysely-neon v2
       return new Kysely<Database>({
-        dialect: new NeonHTTPDialect({
-          connectionString: poolerUrl,
+        dialect: new NeonDialect({
+          neon: neon(poolerUrl),
         }),
       });
     }
 
     case "neon-websocket": {
+      // Use Neon WebSocket Pool with Kysely's PostgresDialect
+      neonConfig.webSocketConstructor = ws as unknown as typeof WebSocket;
+      const pool = new Pool({ connectionString: poolerUrl, max: 8 });
       return new Kysely<Database>({
-        dialect: new NeonDialect({
-          connectionString: poolerUrl,
+        dialect: new PostgresDialect({
+          pool,
         }),
       });
     }
@@ -223,10 +146,11 @@ export function createKyselyWithDriver(driver: DriverType): Kysely<Database> {
       if (!env.DIRECT_DATABASE_URL) {
         throw new Error("DIRECT_DATABASE_URL environment variable is required for neon-unpooled driver");
       }
-
+      neonConfig.webSocketConstructor = ws as unknown as typeof WebSocket;
+      const pool = new Pool({ connectionString: env.DIRECT_DATABASE_URL, max: 8 });
       return new Kysely<Database>({
-        dialect: new NeonDialect({
-          connectionString: env.DIRECT_DATABASE_URL,
+        dialect: new PostgresDialect({
+          pool,
         }),
       });
     }
@@ -343,39 +267,7 @@ export const standardTestQueries = {
 };
 
 // Raw SQL strings for neon-http direct execution
-export const neonHttpQueries = {
-  simple: "SELECT 1 as result",
-  timestamp: "SELECT NOW() as current_time",
-  countUsers: "SELECT COUNT(*) as count FROM users",
-  recentPosts: `
-    SELECT id, title, created_at 
-    FROM posts 
-    ORDER BY created_at DESC 
-    LIMIT 10
-  `,
-  complexJoin: `
-    SELECT 
-      u.id,
-      u.name,
-      u.email,
-      COUNT(p.id) as post_count
-    FROM users u
-    LEFT JOIN posts p ON u.id = p.user_id
-    GROUP BY u.id, u.name, u.email
-    HAVING COUNT(p.id) > 0
-    ORDER BY post_count DESC
-    LIMIT 5
-  `,
-  aggregation: `
-    SELECT 
-      DATE_TRUNC('day', created_at) as day,
-      COUNT(*) as post_count
-    FROM posts
-    WHERE created_at >= NOW() - INTERVAL '30 days'
-    GROUP BY day
-    ORDER BY day DESC
-  `,
-};
+// Removed legacy neon-http raw SQL fallback. v2 driver supports Kysely queries.
 
 function calculateStats(
   times: number[],
@@ -417,44 +309,20 @@ export async function runPerformanceTest(
   const times: number[] = new Array(sampleCount);
   const CONCURRENCY = 8;
 
-  // Special handling for neon-http - use direct SQL execution
-  if (driver === "neon-http") {
-    const neonSql = neon(env.DATABASE_URL);
-    const sqlQuery = neonHttpQueries[queryName as keyof typeof neonHttpQueries];
-    
-    if (!sqlQuery) {
-      throw new Error(`No raw SQL query defined for ${queryName} in neon-http`);
+  // Run queries concurrently for all drivers using Kysely
+  let nextIndex = 0;
+  const worker = async () => {
+    while (true) {
+      const i = nextIndex++;
+      if (i >= sampleCount) break;
+      const start = performance.now();
+      await queryFn().execute(db);
+      const end = performance.now();
+      times[i] = end - start;
     }
-
-    let nextIndex = 0;
-    const worker = async () => {
-      while (true) {
-        const i = nextIndex++;
-        if (i >= sampleCount) break;
-        const start = performance.now();
-        await neonSql.query(sqlQuery);
-        const end = performance.now();
-        times[i] = end - start;
-      }
-    };
-    const workers = Array.from({ length: Math.min(CONCURRENCY, sampleCount) }, worker);
-    await Promise.all(workers);
-  } else {
-    // Standard Kysely execution for all other drivers
-    let nextIndex = 0;
-    const worker = async () => {
-      while (true) {
-        const i = nextIndex++;
-        if (i >= sampleCount) break;
-        const start = performance.now();
-        await queryFn().execute(db);
-        const end = performance.now();
-        times[i] = end - start;
-      }
-    };
-    const workers = Array.from({ length: Math.min(CONCURRENCY, sampleCount) }, worker);
-    await Promise.all(workers);
-  }
+  };
+  const workers = Array.from({ length: Math.min(CONCURRENCY, sampleCount) }, worker);
+  await Promise.all(workers);
 
   const stats = calculateStats(times);
 

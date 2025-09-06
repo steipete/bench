@@ -1,5 +1,6 @@
 import { type Generated, Kysely } from "kysely";
 import { NeonDialect } from "kysely-neon";
+import { neon } from "@neondatabase/serverless";
 import { env } from "~/env";
 
 export interface Database {
@@ -36,7 +37,7 @@ export interface Database {
 export const createDb = (connectionString: string) => {
   return new Kysely<Database>({
     dialect: new NeonDialect({
-      connectionString,
+      neon: neon(connectionString),
     }),
   });
 };
