@@ -27,7 +27,90 @@ export interface DriverComparisonResult {
   totalMean: number;
 }
 
-async function ensureDatabaseSchema(db: Kysely<Database>): Promise<void> {
+async function ensureDatabaseSchema(db: Kysely<Database>, driver: DriverType): Promise<void> {
+  // Special handling for neon-http - use direct SQL
+  if (driver === "neon-http") {
+    try {
+      const neonSql = neon(env.DATABASE_URL);
+      await neonSql.query("SELECT id FROM users LIMIT 1");
+      console.log('✅ Database schema exists and is accessible');
+      return;
+    } catch (error) {
+      console.log('Database schema not found, attempting to create tables...');
+      try {
+        const neonSql = neon(env.DATABASE_URL);
+        
+        // Create users table
+        await neonSql.query(`
+          CREATE TABLE IF NOT EXISTS users (
+            id SERIAL PRIMARY KEY,
+            name VARCHAR(255) NOT NULL,
+            email VARCHAR(255) NOT NULL UNIQUE,
+            created_at TIMESTAMP NOT NULL DEFAULT NOW()
+          )
+        `);
+        
+        // Create posts table
+        await neonSql.query(`
+          CREATE TABLE IF NOT EXISTS posts (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            title VARCHAR(255) NOT NULL,
+            content TEXT,
+            created_at TIMESTAMP NOT NULL DEFAULT NOW()
+          )
+        `);
+        
+        // Create benchmark_results table
+        await neonSql.query(`
+          CREATE TABLE IF NOT EXISTS benchmark_results (
+            id SERIAL PRIMARY KEY,
+            driver VARCHAR(50) NOT NULL,
+            query_name VARCHAR(100) NOT NULL,
+            execution_time_ms REAL NOT NULL,
+            sample_count INTEGER NOT NULL,
+            median_ms REAL NOT NULL,
+            p95_ms REAL NOT NULL,
+            p99_ms REAL NOT NULL,
+            min_ms REAL NOT NULL,
+            max_ms REAL NOT NULL,
+            created_at TIMESTAMP NOT NULL DEFAULT NOW()
+          )
+        `);
+        
+        // Seed some test data
+        await neonSql.query(`
+          INSERT INTO users (name, email) VALUES 
+          ('Alice Johnson', 'alice@example.com'),
+          ('Bob Smith', 'bob@example.com'),
+          ('Carol Davis', 'carol@example.com'),
+          ('David Wilson', 'david@example.com'),
+          ('Eve Brown', 'eve@example.com')
+          ON CONFLICT (email) DO NOTHING
+        `);
+        
+        // Add some posts
+        await neonSql.query(`
+          INSERT INTO posts (user_id, title, content)
+          SELECT u.id, 
+                 'Post by User ' || u.id || ' - Part ' || s.part, 
+                 'Content for post ' || s.part || ' by user ' || u.id
+          FROM users u
+          CROSS JOIN (VALUES (1), (2)) AS s(part)
+          ON CONFLICT DO NOTHING
+        `);
+        
+        console.log('✅ Database schema created and seeded successfully');
+        return;
+      } catch (schemaError) {
+        console.log('⚠️ Could not create schema (may be read-only database), continuing with existing schema...');
+        console.log('Schema error:', schemaError);
+        return;
+      }
+    }
+  }
+
+  // Standard Kysely execution for all other drivers
   try {
     // Try to query a table - if it fails, create the schema
     await db.selectFrom('users').select('id').limit(1).execute();
@@ -386,7 +469,7 @@ export async function compareDrivers(
       db = createKyselyWithDriver(driver);
       
       // Ensure database schema exists
-      await ensureDatabaseSchema(db);
+      await ensureDatabaseSchema(db, driver);
       
       for (const queryName of queriesToRun) {
         if (queryName in standardTestQueries) {
