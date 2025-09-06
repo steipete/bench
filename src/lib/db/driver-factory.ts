@@ -1,6 +1,7 @@
 import { Kysely, sql } from "kysely";
 import { NeonDialect, NeonHTTPDialect } from "kysely-neon";
 import { PostgresJSDialect } from "kysely-postgres-js";
+import { neon } from "@neondatabase/serverless";
 import postgres from "postgres";
 import { env } from "~/env";
 import type { Database } from "./database";
@@ -258,6 +259,41 @@ export const standardTestQueries = {
   `,
 };
 
+// Raw SQL strings for neon-http direct execution
+export const neonHttpQueries = {
+  simple: "SELECT 1 as result",
+  timestamp: "SELECT NOW() as current_time",
+  countUsers: "SELECT COUNT(*) as count FROM users",
+  recentPosts: `
+    SELECT id, title, created_at 
+    FROM posts 
+    ORDER BY created_at DESC 
+    LIMIT 10
+  `,
+  complexJoin: `
+    SELECT 
+      u.id,
+      u.name,
+      u.email,
+      COUNT(p.id) as post_count
+    FROM users u
+    LEFT JOIN posts p ON u.id = p.user_id
+    GROUP BY u.id, u.name, u.email
+    HAVING COUNT(p.id) > 0
+    ORDER BY post_count DESC
+    LIMIT 5
+  `,
+  aggregation: `
+    SELECT 
+      DATE_TRUNC('day', created_at) as day,
+      COUNT(*) as post_count
+    FROM posts
+    WHERE created_at >= NOW() - INTERVAL '30 days'
+    GROUP BY day
+    ORDER BY day DESC
+  `,
+};
+
 function calculateStats(
   times: number[],
 ): Omit<PerformanceTestResult, "queryName" | "times" | "sampleCount"> {
@@ -293,14 +329,34 @@ export async function runPerformanceTest(
   queryName: string,
   queryFn: () => any,
   sampleCount: number = 10,
+  driver?: DriverType,
 ): Promise<PerformanceTestResult> {
   const times: number[] = [];
 
-  for (let i = 0; i < sampleCount; i++) {
-    const start = performance.now();
-    await queryFn().execute(db);
-    const end = performance.now();
-    times.push(end - start);
+  // Special handling for neon-http - use direct SQL execution
+  if (driver === "neon-http") {
+    const neonSql = neon(env.DATABASE_URL);
+    const sqlQuery = neonHttpQueries[queryName as keyof typeof neonHttpQueries];
+    
+    if (!sqlQuery) {
+      throw new Error(`No raw SQL query defined for ${queryName} in neon-http`);
+    }
+
+    for (let i = 0; i < sampleCount; i++) {
+      const start = performance.now();
+      // Use neonSql.query() for regular SQL strings
+      await neonSql.query(sqlQuery);
+      const end = performance.now();
+      times.push(end - start);
+    }
+  } else {
+    // Standard Kysely execution for all other drivers
+    for (let i = 0; i < sampleCount; i++) {
+      const start = performance.now();
+      await queryFn().execute(db);
+      const end = performance.now();
+      times.push(end - start);
+    }
   }
 
   const stats = calculateStats(times);
@@ -335,7 +391,7 @@ export async function compareDrivers(
       for (const queryName of queriesToRun) {
         if (queryName in standardTestQueries) {
           const queryFn = standardTestQueries[queryName as keyof typeof standardTestQueries];
-          const result = await runPerformanceTest(db, queryName, queryFn, sampleCount);
+          const result = await runPerformanceTest(db, queryName, queryFn, sampleCount, driver);
           driverResults.push(result);
         }
       }
