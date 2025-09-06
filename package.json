@@ -19,7 +19,7 @@
     "@tailwindcss/postcss": "^4.1.12",
     "dotenv": "^17.2.1",
     "kysely": "^0.28.5",
-    "kysely-neon": "github:steipete/kysely-neon#main",
+    "kysely-neon": "^1.3.0",
     "kysely-postgres-js": "^2.0.0",
     "next": "^15.5.2",
     "postgres": "^3.4.7",
