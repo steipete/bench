@@ -5,7 +5,7 @@ import postgres from "postgres";
 import { env } from "~/env";
 import type { Database } from "./database";
 
-export type DriverType = "postgres.js" | "neon-http" | "neon-websocket" | "neon-unpooled" | "planetscale" | "planetscale-unpooled";
+export type DriverType = "postgres.js" | "neon-http" | "neon-websocket" | "neon-unpooled" | "planetscale" | "planetscale-unpooled" | "planetscale-metal" | "planetscale-metal-unpooled";
 
 export interface PerformanceTestResult {
   queryName: string;
@@ -179,6 +179,42 @@ export function createKyselyWithDriver(driver: DriverType): Kysely<Database> {
       return new Kysely<Database>({
         dialect: new PostgresJSDialect({
           postgres: planetscaleUnpooledConnection,
+        }),
+      });
+    }
+
+    case "planetscale-metal": {
+      if (!env.PLANETSCALE_METAL_DATABASE_URL) {
+        throw new Error("PLANETSCALE_METAL_DATABASE_URL environment variable is required for planetscale-metal driver");
+      }
+
+      const planetscaleMetalConnection = postgres(env.PLANETSCALE_METAL_DATABASE_URL, {
+        max: 1,
+        idle_timeout: 20,
+        connect_timeout: 10,
+      });
+
+      return new Kysely<Database>({
+        dialect: new PostgresJSDialect({
+          postgres: planetscaleMetalConnection,
+        }),
+      });
+    }
+
+    case "planetscale-metal-unpooled": {
+      if (!env.PLANETSCALE_METAL_DATABASE_URL_UNPOOLED) {
+        throw new Error("PLANETSCALE_METAL_DATABASE_URL_UNPOOLED environment variable is required for planetscale-metal-unpooled driver");
+      }
+
+      const planetscaleMetalUnpooledConnection = postgres(env.PLANETSCALE_METAL_DATABASE_URL_UNPOOLED, {
+        max: 1,
+        idle_timeout: 20,
+        connect_timeout: 10,
+      });
+
+      return new Kysely<Database>({
+        dialect: new PostgresJSDialect({
+          postgres: planetscaleMetalUnpooledConnection,
         }),
       });
     }

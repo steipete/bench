@@ -12,6 +12,8 @@ export const env = createEnv({
     DIRECT_DATABASE_URL: z.string().url().optional(),
     PLANETSCALE_DATABASE_URL: z.string().url().optional(),
     PLANETSCALE_DATABASE_URL_UNPOOLED: z.string().url().optional(),
+    PLANETSCALE_METAL_DATABASE_URL: z.string().url().optional(),
+    PLANETSCALE_METAL_DATABASE_URL_UNPOOLED: z.string().url().optional(),
   },
 
   /**
@@ -33,6 +35,8 @@ export const env = createEnv({
     DIRECT_DATABASE_URL: process.env.DIRECT_DATABASE_URL,
     PLANETSCALE_DATABASE_URL: process.env.PLANETSCALE_DATABASE_URL,
     PLANETSCALE_DATABASE_URL_UNPOOLED: process.env.PLANETSCALE_DATABASE_URL_UNPOOLED,
+    PLANETSCALE_METAL_DATABASE_URL: process.env.PLANETSCALE_METAL_DATABASE_URL,
+    PLANETSCALE_METAL_DATABASE_URL_UNPOOLED: process.env.PLANETSCALE_METAL_DATABASE_URL_UNPOOLED,
     // NEXT_PUBLIC_CLIENTVAR: process.env.NEXT_PUBLIC_CLIENTVAR,
   },
   /**

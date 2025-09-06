@@ -39,6 +39,8 @@ export default function Home() {
     "neon-unpooled": true,
     "planetscale": true,
     "planetscale-unpooled": true,
+    "planetscale-metal": true,
+    "planetscale-metal-unpooled": true,
   });
 
   const runBenchmark = async () => {
