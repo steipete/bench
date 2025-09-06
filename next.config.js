@@ -7,6 +7,9 @@ import "./src/env.js";
 /** @type {import("next").NextConfig} */
 const config = {
   reactStrictMode: true,
+  
+  // Fix workspace root warning
+  outputFileTracingRoot: ".",
 
   /**
    * If you are using `appDir` then you must comment the below `i18n` config out.
