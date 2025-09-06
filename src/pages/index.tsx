@@ -36,6 +36,7 @@ export default function Home() {
     "postgres.js": true,
     "neon-http": true,
     "neon-websocket": true,
+    "neon-unpooled": true,
     "planetscale": true,
     "planetscale-unpooled": true,
   });

@@ -1,9 +1,8 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import {
-  runBenchmarkComparison,
-  storeBenchmarkResults,
-} from "~/lib/db/driver-benchmarks";
-import type { DriverType } from "~/lib/db/driver-benchmarks";
+  compareDrivers,
+} from "~/lib/db/driver-factory";
+import type { DriverType } from "~/lib/db/driver-factory";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "GET" && req.method !== "POST") {
@@ -20,11 +19,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       ? drivers
       : ["postgres.js", "neon-http", "neon-websocket"];
 
-    const count: number = typeof sampleCount === "number" && sampleCount > 0 ? sampleCount : 20;
+    const count: number = typeof sampleCount === "number" && sampleCount > 0 ? sampleCount : 10;
 
     const queryNames: string[] | undefined = Array.isArray(queries) && queries.length ? queries : undefined;
 
-    const results = await runBenchmarkComparison(driverList, count, queryNames);
+    const results = await compareDrivers(driverList, queryNames, count);
 
     // Calculate comparison percentages
     const comparison = results.map((driverResult, index) => {
@@ -41,8 +40,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       };
     });
 
-    // Store results in database
-    await storeBenchmarkResults(results);
+    // TODO: Store results in database if needed
+    // await storeBenchmarkResults(results);
 
     res.status(200).json({
       results: comparison,

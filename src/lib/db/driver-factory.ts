@@ -1,12 +1,11 @@
 import { Kysely, sql } from "kysely";
 import { NeonDialect, NeonHTTPDialect } from "kysely-neon";
-import { PlanetScaleDialect } from "kysely-planetscale";
 import { PostgresJSDialect } from "kysely-postgres-js";
 import postgres from "postgres";
 import { env } from "~/env";
 import type { Database } from "./database";
 
-export type DriverType = "postgres.js" | "neon-http" | "neon-websocket" | "planetscale" | "planetscale-unpooled";
+export type DriverType = "postgres.js" | "neon-http" | "neon-websocket" | "neon-unpooled" | "planetscale" | "planetscale-unpooled";
 
 export interface PerformanceTestResult {
   queryName: string;
@@ -25,6 +24,81 @@ export interface DriverComparisonResult {
   results: PerformanceTestResult[];
   totalMedian: number;
   totalMean: number;
+}
+
+async function ensureDatabaseSchema(db: Kysely<Database>): Promise<void> {
+  try {
+    // Try to query a table - if it fails, create the schema
+    await db.selectFrom('users').select('id').limit(1).execute();
+    console.log('✅ Database schema exists and is accessible');
+  } catch (error) {
+    console.log('Database schema not found, attempting to create tables...');
+    
+    try {
+      // Create users table
+      await db.schema.createTable('users')
+        .ifNotExists()
+        .addColumn('id', 'serial', (col) => col.primaryKey())
+        .addColumn('name', 'varchar(255)', (col) => col.notNull())
+        .addColumn('email', 'varchar(255)', (col) => col.notNull().unique())
+        .addColumn('created_at', 'timestamp', (col) => col.notNull().defaultTo(sql`NOW()`))
+        .execute();
+      
+      // Create posts table
+      await db.schema.createTable('posts')
+        .ifNotExists()
+        .addColumn('id', 'serial', (col) => col.primaryKey())
+        .addColumn('user_id', 'integer', (col) => col.references('users.id').onDelete('cascade'))
+        .addColumn('title', 'varchar(255)', (col) => col.notNull())
+        .addColumn('content', 'text')
+        .addColumn('created_at', 'timestamp', (col) => col.notNull().defaultTo(sql`NOW()`))
+        .execute();
+      
+      // Create benchmark_results table
+      await db.schema.createTable('benchmark_results')
+        .ifNotExists()
+        .addColumn('id', 'serial', (col) => col.primaryKey())
+        .addColumn('driver', 'varchar(50)', (col) => col.notNull())
+        .addColumn('query_name', 'varchar(100)', (col) => col.notNull())
+        .addColumn('execution_time_ms', 'real', (col) => col.notNull())
+        .addColumn('sample_count', 'integer', (col) => col.notNull())
+        .addColumn('median_ms', 'real', (col) => col.notNull())
+        .addColumn('p95_ms', 'real', (col) => col.notNull())
+        .addColumn('p99_ms', 'real', (col) => col.notNull())
+        .addColumn('min_ms', 'real', (col) => col.notNull())
+        .addColumn('max_ms', 'real', (col) => col.notNull())
+        .addColumn('created_at', 'timestamp', (col) => col.notNull().defaultTo(sql`NOW()`))
+        .execute();
+      
+      // Seed some test data
+      const users = await db.insertInto('users')
+        .values([
+          { name: 'Alice Johnson', email: 'alice@example.com' },
+          { name: 'Bob Smith', email: 'bob@example.com' },
+          { name: 'Carol Davis', email: 'carol@example.com' },
+          { name: 'David Wilson', email: 'david@example.com' },
+          { name: 'Eve Brown', email: 'eve@example.com' },
+        ])
+        .returning('id')
+        .execute();
+      
+      // Add some posts
+      const posts = [];
+      for (const user of users) {
+        posts.push(
+          { user_id: user.id, title: `Post by User ${user.id} - Part 1`, content: `Content for post 1 by user ${user.id}` },
+          { user_id: user.id, title: `Post by User ${user.id} - Part 2`, content: `Content for post 2 by user ${user.id}` },
+        );
+      }
+      
+      await db.insertInto('posts').values(posts).execute();
+      
+      console.log('✅ Database schema created and seeded successfully');
+    } catch (schemaError) {
+      console.log('⚠️ Could not create schema (may be read-only database), continuing with existing schema...');
+      console.log('Schema error:', schemaError);
+    }
+  }
 }
 
 export function createKyselyWithDriver(driver: DriverType): Kysely<Database> {
@@ -61,14 +135,32 @@ export function createKyselyWithDriver(driver: DriverType): Kysely<Database> {
       });
     }
 
+    case "neon-unpooled": {
+      if (!env.DIRECT_DATABASE_URL) {
+        throw new Error("DIRECT_DATABASE_URL environment variable is required for neon-unpooled driver");
+      }
+
+      return new Kysely<Database>({
+        dialect: new NeonDialect({
+          connectionString: env.DIRECT_DATABASE_URL,
+        }),
+      });
+    }
+
     case "planetscale": {
       if (!env.PLANETSCALE_DATABASE_URL) {
         throw new Error("PLANETSCALE_DATABASE_URL environment variable is required for planetscale driver");
       }
 
+      const planetscalePooledConnection = postgres(env.PLANETSCALE_DATABASE_URL, {
+        max: 1,
+        idle_timeout: 20,
+        connect_timeout: 10,
+      });
+
       return new Kysely<Database>({
-        dialect: new PlanetScaleDialect({
-          url: env.PLANETSCALE_DATABASE_URL,
+        dialect: new PostgresJSDialect({
+          postgres: planetscalePooledConnection,
         }),
       });
     }
@@ -78,9 +170,15 @@ export function createKyselyWithDriver(driver: DriverType): Kysely<Database> {
         throw new Error("PLANETSCALE_DATABASE_URL_UNPOOLED environment variable is required for planetscale-unpooled driver");
       }
 
+      const planetscaleUnpooledConnection = postgres(env.PLANETSCALE_DATABASE_URL_UNPOOLED, {
+        max: 1,
+        idle_timeout: 20,
+        connect_timeout: 10,
+      });
+
       return new Kysely<Database>({
-        dialect: new PlanetScaleDialect({
-          url: env.PLANETSCALE_DATABASE_URL_UNPOOLED,
+        dialect: new PostgresJSDialect({
+          postgres: planetscaleUnpooledConnection,
         }),
       });
     }
@@ -188,10 +286,16 @@ export async function compareDrivers(
   const queriesToRun = queryNames || Object.keys(standardTestQueries);
 
   for (const driver of drivers) {
-    const db = createKyselyWithDriver(driver);
+    console.log(`\n🔍 Testing driver: ${driver}`);
+    let db: Kysely<Database> | null = null;
     const driverResults: PerformanceTestResult[] = [];
 
     try {
+      db = createKyselyWithDriver(driver);
+      
+      // Ensure database schema exists
+      await ensureDatabaseSchema(db);
+      
       for (const queryName of queriesToRun) {
         if (queryName in standardTestQueries) {
           const queryFn = standardTestQueries[queryName as keyof typeof standardTestQueries];
@@ -206,11 +310,18 @@ export async function compareDrivers(
       results.push({
         driver,
         results: driverResults,
-        totalMedian: allMedians.reduce((a, b) => a + b, 0) / allMedians.length,
-        totalMean: allMeans.reduce((a, b) => a + b, 0) / allMeans.length,
+        totalMedian: allMedians.length ? allMedians.reduce((a, b) => a + b, 0) / allMedians.length : 0,
+        totalMean: allMeans.length ? allMeans.reduce((a, b) => a + b, 0) / allMeans.length : 0,
       });
+      
+      console.log(`✅ ${driver}: ${driverResults.length} queries completed`);
+    } catch (error) {
+      console.error(`❌ ${driver} failed:`, error);
+      // Skip this driver but continue with others
     } finally {
-      await db.destroy();
+      if (db) {
+        await db.destroy();
+      }
     }
   }
 

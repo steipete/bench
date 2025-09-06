@@ -20,7 +20,6 @@
     "dotenv": "^17.2.1",
     "kysely": "^0.28.5",
     "kysely-neon": "github:steipete/kysely-neon#main",
-    "kysely-planetscale": "^1.7.1",
     "kysely-postgres-js": "^2.0.0",
     "next": "^15.5.2",
     "postgres": "^3.4.7",
