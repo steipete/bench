@@ -117,7 +117,7 @@ async function runPostgresJSBenchmark(iterations: number, queryNames?: string[])
   // Use pooled connection for postgres.js as well
   const pooledUrl = env.DATABASE_URL;
   const sql = postgres(pooledUrl, {
-    max: 1,
+    max: 8,
     idle_timeout: 20,
     connect_timeout: 10,
   });
@@ -126,14 +126,21 @@ async function runPostgresJSBenchmark(iterations: number, queryNames?: string[])
 
   try {
     for (const query of getQueriesToRun(queryNames)) {
-      const times: number[] = [];
-
-      for (let i = 0; i < iterations; i++) {
-        const start = performance.now();
-        await sql.unsafe(query.sql);
-        const end = performance.now();
-        times.push(end - start);
-      }
+      const times: number[] = new Array(iterations);
+      const CONCURRENCY = 8;
+      let nextIndex = 0;
+      const worker = async () => {
+        while (true) {
+          const i = nextIndex++;
+          if (i >= iterations) break;
+          const start = performance.now();
+          await sql.unsafe(query.sql);
+          const end = performance.now();
+          times[i] = end - start;
+        }
+      };
+      const workers = Array.from({ length: Math.min(CONCURRENCY, iterations) }, worker);
+      await Promise.all(workers);
 
       results.push({
         queryName: query.name,
@@ -158,14 +165,21 @@ async function runNeonBenchmark(useHttp: boolean, iterations: number, queryNames
     const sql = neon(connectionString);
 
     for (const query of getQueriesToRun(queryNames)) {
-      const times: number[] = [];
-
-      for (let i = 0; i < iterations; i++) {
-        const start = performance.now();
-        await sql.query(query.sql);
-        const end = performance.now();
-        times.push(end - start);
-      }
+      const times: number[] = new Array(iterations);
+      const CONCURRENCY = 8;
+      let nextIndex = 0;
+      const worker = async () => {
+        while (true) {
+          const i = nextIndex++;
+          if (i >= iterations) break;
+          const start = performance.now();
+          await sql.query(query.sql);
+          const end = performance.now();
+          times[i] = end - start;
+        }
+      };
+      const workers = Array.from({ length: Math.min(CONCURRENCY, iterations) }, worker);
+      await Promise.all(workers);
 
       results.push({
         queryName: query.name,
@@ -177,18 +191,25 @@ async function runNeonBenchmark(useHttp: boolean, iterations: number, queryNames
   } else {
     // Use WebSockets via Pool/Client API per Neon docs
     neonConfig.webSocketConstructor = ws as unknown as typeof WebSocket;
-    const pool = new Pool({ connectionString });
+    const pool = new Pool({ connectionString, max: 8 });
 
     try {
       for (const query of getQueriesToRun(queryNames)) {
-        const times: number[] = [];
-
-        for (let i = 0; i < iterations; i++) {
-          const start = performance.now();
-          await pool.query(query.sql);
-          const end = performance.now();
-          times.push(end - start);
-        }
+        const times: number[] = new Array(iterations);
+        const CONCURRENCY = 8;
+        let nextIndex = 0;
+        const worker = async () => {
+          while (true) {
+            const i = nextIndex++;
+            if (i >= iterations) break;
+            const start = performance.now();
+            await pool.query(query.sql);
+            const end = performance.now();
+            times[i] = end - start;
+          }
+        };
+        const workers = Array.from({ length: Math.min(CONCURRENCY, iterations) }, worker);
+        await Promise.all(workers);
 
         results.push({
           queryName: query.name,

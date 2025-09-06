@@ -191,7 +191,7 @@ export function createKyselyWithDriver(driver: DriverType): Kysely<Database> {
   switch (driver) {
     case "postgres.js": {
       const postgresConnection = postgres(poolerUrl, {
-        max: 1,
+        max: 8,
         idle_timeout: 20,
         connect_timeout: 10,
       });
@@ -237,7 +237,7 @@ export function createKyselyWithDriver(driver: DriverType): Kysely<Database> {
       }
 
       const planetscalePooledConnection = postgres(env.PLANETSCALE_DATABASE_URL, {
-        max: 1,
+        max: 8,
         idle_timeout: 20,
         connect_timeout: 10,
       });
@@ -255,7 +255,7 @@ export function createKyselyWithDriver(driver: DriverType): Kysely<Database> {
       }
 
       const planetscaleUnpooledConnection = postgres(env.PLANETSCALE_DATABASE_URL_UNPOOLED, {
-        max: 1,
+        max: 8,
         idle_timeout: 20,
         connect_timeout: 10,
       });
@@ -273,7 +273,7 @@ export function createKyselyWithDriver(driver: DriverType): Kysely<Database> {
       }
 
       const planetscaleMetalConnection = postgres(env.PLANETSCALE_METAL_DATABASE_URL, {
-        max: 1,
+        max: 8,
         idle_timeout: 20,
         connect_timeout: 10,
       });
@@ -291,7 +291,7 @@ export function createKyselyWithDriver(driver: DriverType): Kysely<Database> {
       }
 
       const planetscaleMetalUnpooledConnection = postgres(env.PLANETSCALE_METAL_DATABASE_URL_UNPOOLED, {
-        max: 1,
+        max: 8,
         idle_timeout: 20,
         connect_timeout: 10,
       });
@@ -414,7 +414,8 @@ export async function runPerformanceTest(
   sampleCount: number = 10,
   driver?: DriverType,
 ): Promise<PerformanceTestResult> {
-  const times: number[] = [];
+  const times: number[] = new Array(sampleCount);
+  const CONCURRENCY = 8;
 
   // Special handling for neon-http - use direct SQL execution
   if (driver === "neon-http") {
@@ -425,21 +426,34 @@ export async function runPerformanceTest(
       throw new Error(`No raw SQL query defined for ${queryName} in neon-http`);
     }
 
-    for (let i = 0; i < sampleCount; i++) {
-      const start = performance.now();
-      // Use neonSql.query() for regular SQL strings
-      await neonSql.query(sqlQuery);
-      const end = performance.now();
-      times.push(end - start);
-    }
+    let nextIndex = 0;
+    const worker = async () => {
+      while (true) {
+        const i = nextIndex++;
+        if (i >= sampleCount) break;
+        const start = performance.now();
+        await neonSql.query(sqlQuery);
+        const end = performance.now();
+        times[i] = end - start;
+      }
+    };
+    const workers = Array.from({ length: Math.min(CONCURRENCY, sampleCount) }, worker);
+    await Promise.all(workers);
   } else {
     // Standard Kysely execution for all other drivers
-    for (let i = 0; i < sampleCount; i++) {
-      const start = performance.now();
-      await queryFn().execute(db);
-      const end = performance.now();
-      times.push(end - start);
-    }
+    let nextIndex = 0;
+    const worker = async () => {
+      while (true) {
+        const i = nextIndex++;
+        if (i >= sampleCount) break;
+        const start = performance.now();
+        await queryFn().execute(db);
+        const end = performance.now();
+        times[i] = end - start;
+      }
+    };
+    const workers = Array.from({ length: Math.min(CONCURRENCY, sampleCount) }, worker);
+    await Promise.all(workers);
   }
 
   const stats = calculateStats(times);
