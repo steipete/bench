@@ -1,11 +1,13 @@
 import { Kysely, sql } from "kysely";
 import { NeonDialect, NeonHTTPDialect } from "kysely-neon";
+import { PlanetScaleDialect } from "kysely-planetscale";
 import { PostgresJSDialect } from "kysely-postgres-js";
+import mysql from "mysql2/promise";
 import postgres from "postgres";
 import { env } from "~/env";
 import type { Database } from "./database";
 
-export type DriverType = "postgres.js" | "neon-http" | "neon-websocket";
+export type DriverType = "postgres.js" | "neon-http" | "neon-websocket" | "planetscale" | "planetscale-unpooled";
 
 export interface PerformanceTestResult {
   queryName: string;
@@ -60,6 +62,30 @@ export function createKyselyWithDriver(driver: DriverType): Kysely<Database> {
       });
     }
 
+    case "planetscale": {
+      if (!env.PLANETSCALE_DATABASE_URL) {
+        throw new Error("PLANETSCALE_DATABASE_URL environment variable is required for planetscale driver");
+      }
+
+      return new Kysely<Database>({
+        dialect: new PlanetScaleDialect({
+          url: env.PLANETSCALE_DATABASE_URL,
+        }),
+      });
+    }
+
+    case "planetscale-unpooled": {
+      if (!env.PLANETSCALE_DATABASE_URL_UNPOOLED) {
+        throw new Error("PLANETSCALE_DATABASE_URL_UNPOOLED environment variable is required for planetscale-unpooled driver");
+      }
+
+      return new Kysely<Database>({
+        dialect: new PlanetScaleDialect({
+          url: env.PLANETSCALE_DATABASE_URL_UNPOOLED,
+        }),
+      });
+    }
+
     default:
       throw new Error(`Unknown driver: ${driver}`);
   }
@@ -90,10 +116,10 @@ export const standardTestQueries = {
   `,
   aggregation: () => sql`
     SELECT 
-      DATE_TRUNC('day', created_at) as day,
+      DATE(created_at) as day,
       COUNT(*) as post_count
     FROM posts
-    WHERE created_at >= NOW() - INTERVAL '30 days'
+    WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
     GROUP BY day
     ORDER BY day DESC
   `,
