@@ -22,7 +22,6 @@
     "kysely-neon": "github:steipete/kysely-neon#main",
     "kysely-planetscale": "^1.7.1",
     "kysely-postgres-js": "^2.0.0",
-    "mysql2": "^3.14.4",
     "next": "^15.5.2",
     "postgres": "^3.4.7",
     "react": "^19.1.1",

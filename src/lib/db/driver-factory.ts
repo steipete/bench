@@ -2,7 +2,6 @@ import { Kysely, sql } from "kysely";
 import { NeonDialect, NeonHTTPDialect } from "kysely-neon";
 import { PlanetScaleDialect } from "kysely-planetscale";
 import { PostgresJSDialect } from "kysely-postgres-js";
-import mysql from "mysql2/promise";
 import postgres from "postgres";
 import { env } from "~/env";
 import type { Database } from "./database";
@@ -116,10 +115,10 @@ export const standardTestQueries = {
   `,
   aggregation: () => sql`
     SELECT 
-      DATE(created_at) as day,
+      DATE_TRUNC('day', created_at) as day,
       COUNT(*) as post_count
     FROM posts
-    WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+    WHERE created_at >= NOW() - INTERVAL '30 days'
     GROUP BY day
     ORDER BY day DESC
   `,

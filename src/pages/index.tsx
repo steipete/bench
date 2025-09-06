@@ -36,6 +36,8 @@ export default function Home() {
     "postgres.js": true,
     "neon-http": true,
     "neon-websocket": true,
+    "planetscale": true,
+    "planetscale-unpooled": true,
   });
 
   const runBenchmark = async () => {
@@ -96,7 +98,7 @@ export default function Home() {
             <div>
               <h1 className="text-lg font-medium mb-1 text-gray-900 dark:text-gray-100">DATABASE/BENCHMARK</h1>
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                Performance comparison: postgres.js × neon-http × neon-websocket
+                Performance comparison: postgres.js × neon × planetscale
               </p>
             </div>
             <ThemeToggle />
