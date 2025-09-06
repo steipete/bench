@@ -28,7 +28,25 @@ export interface DriverComparisonResult {
   totalMean: number;
 }
 
-async function ensureDatabaseSchema(db: Kysely<Database>, _driver: DriverType): Promise<void> {
+const queriesRequiringData = new Set([
+  'countUsers',
+  'recentPosts',
+  'complexJoin',
+  'aggregation',
+]);
+
+async function ensureDatabaseSchema(
+  db: Kysely<Database>,
+  _driver: DriverType,
+  queriesToRun?: string[],
+): Promise<void> {
+  // Skip schema ensure if selected queries don't need tables
+  if (
+    queriesToRun &&
+    !queriesToRun.some((q) => queriesRequiringData.has(q))
+  ) {
+    return;
+  }
   // Use Kysely for schema across all drivers (Neon HTTP supported via v2 dialect)
   try {
     // Try to query a table - if it fails, create the schema
@@ -350,8 +368,8 @@ export async function compareDrivers(
     try {
       db = createKyselyWithDriver(driver);
       
-      // Ensure database schema exists
-      await ensureDatabaseSchema(db, driver);
+      // Ensure database schema exists (only if needed by selected queries)
+      await ensureDatabaseSchema(db, driver, queriesToRun);
       
       for (const queryName of queriesToRun) {
         if (queryName in standardTestQueries) {
